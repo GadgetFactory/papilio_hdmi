@@ -94,8 +94,8 @@ module video_top_wb
     reg [11:0] pixel_y;
     reg        de_prev;
     
-    always @(posedge pix_clk or negedge rst_n) begin
-        if (!rst_n) begin
+    always @(posedge pix_clk or negedge I_rst_n) begin
+        if (!I_rst_n) begin
             pixel_x <= 0;
             pixel_y <= 0;
             de_prev <= 0;
