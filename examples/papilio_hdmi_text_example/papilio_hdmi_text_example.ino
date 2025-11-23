@@ -30,7 +30,7 @@ void setup() {
   hdmi.clearScreen();
   
   // Set text color to bright green on black
-  hdmi.setTextColor(COLOR_LIGHT_GREEN, COLOR_BLACK);
+  hdmi.setTextColor(HDMI_COLOR_LIGHT_GREEN, HDMI_COLOR_BLACK);
   
   // Display header
   hdmi.setCursor(25, 2);
@@ -44,11 +44,11 @@ void setup() {
   delay(500);
   
   hdmi.setCursor(5, 7);
-  hdmi.setTextColor(COLOR_YELLOW, COLOR_BLACK);
+  hdmi.setTextColor(HDMI_COLOR_YELLOW, HDMI_COLOR_BLACK);
   hdmi.print("Text Mode Features:");
   
   hdmi.setCursor(7, 9);
-  hdmi.setTextColor(COLOR_WHITE, COLOR_BLACK);
+  hdmi.setTextColor(HDMI_COLOR_WHITE, HDMI_COLOR_BLACK);
   hdmi.println("* 80x30 character display");
   
   hdmi.setCursor(7, 10);
@@ -67,7 +67,7 @@ void setup() {
   delay(500);
   
   hdmi.setCursor(5, 16);
-  hdmi.setTextColor(COLOR_YELLOW, COLOR_BLACK);
+  hdmi.setTextColor(HDMI_COLOR_YELLOW, HDMI_COLOR_BLACK);
   hdmi.print("Color Palette:");
   
   // Display all 16 colors
@@ -82,16 +82,16 @@ void setup() {
     int row = 18 + (i / 4);
     int col = 7 + ((i % 4) * 18);
     hdmi.setCursor(col, row);
-    hdmi.setTextColor(i, COLOR_BLACK);
+    hdmi.setTextColor(i, HDMI_COLOR_BLACK);
     hdmi.print(colorNames[i]);
   }
   
   // Reset to white on black
-  hdmi.setTextColor(COLOR_WHITE, COLOR_BLACK);
+  hdmi.setTextColor(HDMI_COLOR_WHITE, HDMI_COLOR_BLACK);
   
   // Show live counter at bottom
   hdmi.setCursor(5, 26);
-  hdmi.setTextColor(COLOR_LIGHT_CYAN, COLOR_BLACK);
+  hdmi.setTextColor(HDMI_COLOR_LIGHT_CYAN, HDMI_COLOR_BLACK);
   hdmi.print("Counter: ");
   
   Serial.println("Text mode initialized - counter starting...");
@@ -102,7 +102,7 @@ uint32_t counter = 0;
 void loop() {
   // Update counter every second
   hdmi.setCursor(14, 26);
-  hdmi.setTextColor(COLOR_LIGHT_CYAN, COLOR_BLACK);
+  hdmi.setTextColor(HDMI_COLOR_LIGHT_CYAN, HDMI_COLOR_BLACK);
   
   char buffer[20];
   sprintf(buffer, "%08lu", counter);
@@ -119,7 +119,7 @@ void loop() {
   if (counter % 10 == 0) {
     uint8_t color = (counter / 10) % 16;
     hdmi.setCursor(5, 28);
-    hdmi.setTextColor(color, COLOR_BLACK);
+    hdmi.setTextColor(color, HDMI_COLOR_BLACK);
     hdmi.print("Color changing demo - current color index: ");
     char colorBuf[4];
     sprintf(colorBuf, "%02d", color);
@@ -127,3 +127,4 @@ void loop() {
     hdmi.print("  ");
   }
 }
+
