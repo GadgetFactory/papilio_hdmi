@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module name="top" Lut="2" T_Register="893(0)" T_Alu="178(0)" T_Lut="2243(2)" T_Ssram="8(0)">
+ <SubModule name="u_usb_pll"/>
+ <SubModule name="u_spi_wb_bridge" Register="104" Lut="183" T_Register="125(104)" T_Lut="213(183)">
+  <SubModule name="uart_inst" Register="21" Lut="30" T_Register="21(21)" T_Lut="30(30)"/>
+ </SubModule>
+ <SubModule name="u_wb_rgb_led" Register="43" Lut="38" T_Register="68(43)" T_Lut="112(38)">
+  <SubModule name="ws2812b_inst" Register="25" Lut="74" T_Register="25(25)" T_Lut="74(74)"/>
+ </SubModule>
+ <SubModule name="u_wb_video" Register="3" Lut="3" T_Register="196(3)" T_Alu="68(0)" T_Lut="388(3)">
+  <SubModule name="u_video" Lut="1" T_Register="193(0)" T_Alu="68(0)" T_Lut="385(1)">
+   <SubModule name="testpattern_inst" Register="120" Lut="167" T_Register="120(120)" T_Lut="167(167)"/>
+   <SubModule name="u_tmds_rpll"/>
+   <SubModule name="DVI_TX_Top_inst" Register="73" Alu="68" Lut="217" T_Register="73(73)" T_Alu="68(68)" T_Lut="217(217)"/>
+  </SubModule>
+ </SubModule>
+ <SubModule name="u_usb_serial" Register="504" Alu="110" Lut="1528" Ssram="8" T_Register="504(504)" T_Alu="110(110)" T_Lut="1528(1528)" T_Ssram="8(8)"/>
+</Module>

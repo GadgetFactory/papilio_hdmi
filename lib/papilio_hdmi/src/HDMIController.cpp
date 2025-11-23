@@ -1,0 +1,146 @@
+#include "HDMIController.h"
+
+HDMIController::HDMIController(SPIClass* spi, uint8_t csPin, uint8_t spiClk, uint8_t spiMosi, uint8_t spiMiso)
+  : _spi(spi), _ownSpi(false), _cs(csPin), _clk(spiClk), _mosi(spiMosi), _miso(spiMiso) {
+  if (_spi == nullptr) {
+    _ownSpi = true; // will create in begin()
+  }
+}
+
+HDMIController::~HDMIController() {
+  if (_ownSpi && _spi) {
+    delete _spi;
+    _spi = nullptr;
+  }
+}
+
+void HDMIController::begin() {
+  if (_spi == nullptr && _ownSpi) {
+    _spi = new SPIClass(HSPI);
+  }
+
+  if (_spi) {
+    _spi->begin(_clk, _miso, _mosi, _cs);
+  }
+
+  pinMode(_cs, OUTPUT);
+  digitalWrite(_cs, HIGH);
+}
+
+void HDMIController::setLEDColor(uint32_t color) {
+  uint8_t g = (color >> 16) & 0xFF;
+  uint8_t r = (color >> 8) & 0xFF;
+  uint8_t b = color & 0xFF;
+
+  wishboneWrite8(REG_LED_GREEN, g);
+  wishboneWrite8(REG_LED_RED, r);
+  wishboneWrite8(REG_LED_BLUE, b);
+
+  delay(100);
+}
+
+void HDMIController::setLEDColorRGB(uint8_t red, uint8_t green, uint8_t blue) {
+  uint32_t color = ((uint32_t)green << 16) | ((uint32_t)red << 8) | blue;
+  setLEDColor(color);
+}
+
+bool HDMIController::isLEDBusy() {
+  uint8_t status = wishboneRead8(REG_LED_CTRL);
+  return (status & 0x01) != 0;
+}
+
+void HDMIController::setVideoPattern(uint8_t pattern) {
+  wishboneWrite8(REG_VIDEO_PATTERN, pattern);
+}
+
+uint8_t HDMIController::getVideoPattern() {
+  return wishboneRead8(REG_VIDEO_PATTERN);
+}
+
+uint8_t HDMIController::getVideoStatus() {
+  return wishboneRead8(REG_VIDEO_STATUS);
+}
+
+// 8-bit wishbone write
+void HDMIController::wishboneWrite8(uint16_t address, uint8_t data) {
+  if (!_spi) return;
+
+  _spi->beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
+  digitalWrite(_cs, LOW);
+
+  _spi->transfer(CMD_WRITE);
+  _spi->transfer(address & 0xFF);
+  _spi->transfer(data);
+
+  digitalWrite(_cs, HIGH);
+  _spi->endTransaction();
+  delay(1);
+}
+
+// 8-bit wishbone read
+uint8_t HDMIController::wishboneRead8(uint16_t address) {
+  uint8_t data = 0;
+  if (!_spi) return data;
+
+  _spi->beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE1));
+  digitalWrite(_cs, LOW);
+
+  _spi->transfer(CMD_READ);
+  _spi->transfer(address & 0xFF);
+  _spi->transfer((address >> 8) & 0xFF);
+
+  // Read returned byte
+  data = _spi->transfer(0x00);
+
+  digitalWrite(_cs, HIGH);
+  _spi->endTransaction();
+
+  return data;
+}
+
+// 32-bit write
+void HDMIController::wishboneWrite(uint32_t address, uint32_t data) {
+  if (!_spi) return;
+
+  _spi->beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE1));
+  digitalWrite(_cs, LOW);
+
+  _spi->transfer(CMD_WRITE);
+  _spi->transfer((address >> 24) & 0xFF);
+  _spi->transfer((address >> 16) & 0xFF);
+  _spi->transfer((address >> 8) & 0xFF);
+  _spi->transfer(address & 0xFF);
+
+  _spi->transfer((data >> 24) & 0xFF);
+  _spi->transfer((data >> 16) & 0xFF);
+  _spi->transfer((data >> 8) & 0xFF);
+  _spi->transfer(data & 0xFF);
+
+  digitalWrite(_cs, HIGH);
+  _spi->endTransaction();
+}
+
+// 32-bit read
+uint32_t HDMIController::wishboneRead(uint32_t address) {
+  uint32_t data = 0;
+  if (!_spi) return data;
+
+  _spi->beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE1));
+  digitalWrite(_cs, LOW);
+
+  _spi->transfer(CMD_READ);
+  _spi->transfer((address >> 24) & 0xFF);
+  _spi->transfer((address >> 16) & 0xFF);
+  _spi->transfer((address >> 8) & 0xFF);
+  _spi->transfer(address & 0xFF);
+
+  data |= ((uint32_t)_spi->transfer(0x00) << 24);
+  data |= ((uint32_t)_spi->transfer(0x00) << 16);
+  data |= ((uint32_t)_spi->transfer(0x00) << 8);
+  data |= (uint32_t)_spi->transfer(0x00);
+
+  digitalWrite(_cs, HIGH);
+  _spi->endTransaction();
+
+  return data;
+}

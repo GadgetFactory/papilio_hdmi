@@ -1,0 +1,81 @@
+{
+ "Device" : "GW2A-18C",
+ "Files" : [
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/dvi_tx/dvi_tx.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/gowin_rpll/TMDS_rPLL.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/gowin_rpll/gowin_rpll.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/simple_spi_wb_bridge_debug.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/testpattern.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/top.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/uart_tx.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/usb_cdc_acm_gowin.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/usb_device_controller/usb_device_controller.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/usb_pll.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/usb_softphy/usb_softphy.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/video_top.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/video_top_wb.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/wb_address_decoder.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/wb_rgb_led_ctrl.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/wb_simple_rgb_led.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/src/wb_video_ctrl.v",
+   "Type" : "verilog"
+  }
+ ],
+ "IncludePath" : [
+
+ ],
+ "LoopLimit" : 2000,
+ "ResultFile" : "C:/Users/jackg/OneDrive/GadgetFactory_Engineering/2025/papilio-labs/papilio_arcade_board/paplilo_arcade_board/impl/temp/rtl_parser.result",
+ "Top" : "top",
+ "VerilogStd" : "verilog_2001",
+ "VhdlStd" : "vhdl_93"
+}

@@ -1,0 +1,60 @@
+//IO_LOC "led" L16;
+//IO_PORT "led" DRIVE=8;
+
+IO_LOC "clk_27mhz" H11;
+IO_PORT "clk_27mhz" PULL_MODE=UP;
+
+IO_LOC "rst_n" C7;
+IO_PORT "rst_n" PULL_MODE=UP;
+
+IO_LOC "rgb_led" P9;
+IO_PORT "rgb_led" PULL_MODE=NONE;
+
+IO_LOC "esp_miso" C11;
+IO_LOC "esp_clk" A11;
+IO_LOC "esp_mosi" B11;
+IO_LOC "esp_cs_n" A12;
+
+// HDMI Output - exact copy from working Tang Primer 20K project
+IO_LOC "O_tmds_clk_p" P6,T6;
+IO_PORT "O_tmds_clk_p" IO_TYPE=LVCMOS18D PULL_MODE=NONE DRIVE=8;
+IO_LOC "O_tmds_data_p[0]" M6,T8;
+IO_PORT "O_tmds_data_p[0]" IO_TYPE=LVCMOS18D PULL_MODE=NONE DRIVE=8;
+IO_LOC "O_tmds_data_p[1]" T11,P11;
+IO_PORT "O_tmds_data_p[1]" IO_TYPE=LVCMOS18D PULL_MODE=NONE DRIVE=8;
+IO_LOC "O_tmds_data_p[2]" T12,R11;
+IO_PORT "O_tmds_data_p[2]" IO_TYPE=LVCMOS18D PULL_MODE=NONE DRIVE=8;
+
+// HDMI Output - TMDS Differential Pairs
+// Bank 3 is 1.8V - trying single-ended outputs with maximum drive strength
+//IO_LOC "hdmi_clk_p" P6;
+//IO_LOC "hdmi_clk_n" T6;
+//IO_PORT "hdmi_clk_p" IO_TYPE=LVCMOS18 PULL_MODE=NONE DRIVE=24 SLEW=FAST;
+//IO_PORT "hdmi_clk_n" IO_TYPE=LVCMOS18 PULL_MODE=NONE DRIVE=24 SLEW=FAST;
+
+//IO_LOC "hdmi_d0_p" M6;
+//IO_LOC "hdmi_d0_n" T8;
+//IO_PORT "hdmi_d0_p" IO_TYPE=LVCMOS18 PULL_MODE=NONE DRIVE=24 SLEW=FAST;
+//IO_PORT "hdmi_d0_n" IO_TYPE=LVCMOS18 PULL_MODE=NONE DRIVE=24 SLEW=FAST;
+
+//IO_LOC "hdmi_d1_p" T11;
+//IO_LOC "hdmi_d1_n" P11;
+//IO_PORT "hdmi_d1_p" IO_TYPE=LVCMOS18 PULL_MODE=NONE DRIVE=24 SLEW=FAST;
+//IO_PORT "hdmi_d1_n" IO_TYPE=LVCMOS18 PULL_MODE=NONE DRIVE=24 SLEW=FAST;
+
+//IO_LOC "hdmi_d2_p" T12;
+//IO_LOC "hdmi_d2_n" R11;
+//IO_PORT "hdmi_d2_p" IO_TYPE=LVCMOS18 PULL_MODE=NONE DRIVE=24 SLEW=FAST;
+//IO_PORT "hdmi_d2_n" IO_TYPE=LVCMOS18 PULL_MODE=NONE DRIVE=24 SLEW=FAST;
+
+
+//IO_LOC "spiflash_miso" P10;
+//IO_LOC "spiflash_clk" L10;
+//IO_LOC "spiflash_mosi" R10;
+//IO_LOC "spiflash_cs_n" M9;
+
+// USB Serial Port
+IO_LOC "usb_dp" G11;
+IO_LOC "usb_dn" H12;
+IO_PORT "usb_dp" IO_TYPE=LVCMOS18 PULL_MODE=NONE DRIVE=8;
+IO_PORT "usb_dn" IO_TYPE=LVCMOS18 PULL_MODE=NONE DRIVE=8;

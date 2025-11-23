@@ -1,0 +1,18 @@
+-d C:\Users\jackg\OneDrive\GadgetFactory_Engineering\2025\papilio-labs\papilio_arcade_board\paplilo_arcade_board\impl\gwsynthesis\papilio_arcade_board.vg
+-p GW2A-18C-PBGA256-8
+-pn GW2A-LV18PG256C8/I7
+-cst C:\Users\jackg\OneDrive\GadgetFactory_Engineering\2025\papilio-labs\papilio_arcade_board\paplilo_arcade_board\src\pins.cst
+-cfg C:\Users\jackg\OneDrive\GadgetFactory_Engineering\2025\papilio-labs\papilio_arcade_board\paplilo_arcade_board\impl\pnr\device.cfg
+-sdc C:\Users\jackg\OneDrive\GadgetFactory_Engineering\2025\papilio-labs\papilio_arcade_board\paplilo_arcade_board\src\timing.sdc
+-bit
+-tr
+-ph
+-timing
+-cst_error
+-convert_sdp32_36_to_sdp16_18
+-place_option 0
+-route_option 0
+-clock_route_order 0
+-correct_hold 1
+-route_maxfan 23
+-global_freq 100.000

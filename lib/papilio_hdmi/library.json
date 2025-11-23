@@ -1,0 +1,16 @@
+{
+  "name": "papilio_hdmi",
+  "version": "0.1.0",
+  "author": "GadgetFactory",
+  "maintainer": "",
+  "sentence": "FPGA HDMI and RGB LED control over SPI/Wishbone for ESP32 (PlatformIO library)",
+  "paragraph": "Provides a simple API to control the Papilio Arcade Board FPGA HDMI test patterns and the RGB LED via a Wishbone-over-SPI interface.",
+  "website": "",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "license": "MIT",
+  "frameworks": ["arduino"],
+  "platforms": ["espressif32"]
+}
