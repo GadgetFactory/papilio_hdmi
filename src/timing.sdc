@@ -1,1 +1,0 @@
-create_clock -name clk_27mhz -period 37.04 [get_ports {clk_27mhz}]
