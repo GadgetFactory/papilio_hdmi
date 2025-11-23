@@ -125,14 +125,138 @@ Add these files to your `.gprj` project file:
 
 ## Video Patterns
 
-The library supports 4 test patterns (I_mode in testpattern.v):
+The library supports 4 video modes (I_mode in testpattern.v):
 
 | Pattern | Name | Description |
 |---------|------|-------------|
 | 0 | color bar | 8-color vertical bars |
 | 1 | net grid | 32-pixel grid pattern |
 | 2 | gray | Grayscale gradient |
-| 3 | single color | Solid color (configurable) |
+| 3 | text mode | 80x30 character display with 16 colors |
+
+## Text Mode Feature
+
+### Overview
+
+Text mode provides a classic 80x30 character display with 16 foreground and 16 background colors, similar to VGA text mode. Characters are rendered using an 8x8 VGA font.
+
+### Text Mode Integration
+
+**Additional Wishbone Slave Required:**
+
+Text mode requires a second Wishbone slave (Slave 2) for character RAM access at address 0x20-0x2F.
+
+**Add to address decoder in `top.v`:**
+```verilog
+// Slave 2 signals for character RAM
+wire [7:0] s2_wb_adr;
+wire [7:0] s2_wb_dat_o;
+wire [7:0] s2_wb_dat_i;
+wire s2_wb_cyc;
+wire s2_wb_stb;
+wire s2_wb_we;
+wire s2_wb_ack;
+```
+
+**Instantiate character RAM module:**
+```verilog
+wb_char_ram u_wb_char_ram (
+    .clk(clk_27mhz),
+    .rst_n(rst_n),
+    .wb_adr_i(s2_wb_adr),
+    .wb_dat_i(s2_wb_dat_o),
+    .wb_dat_o(s2_wb_dat_i),
+    .wb_cyc_i(s2_wb_cyc),
+    .wb_stb_i(s2_wb_stb),
+    .wb_we_i(s2_wb_we),
+    .wb_ack_o(s2_wb_ack)
+);
+```
+
+**Add to `.gprj` project:**
+```xml
+<File path="path/to/papilio_hdmi/gateware/src/wb_char_ram.v" type="file.verilog" enable="1"/>
+<File path="path/to/papilio_hdmi/gateware/src/char_ram_8x8.v" type="file.verilog" enable="1"/>
+<File path="path/to/papilio_hdmi/gateware/src/wb_text_mode.v" type="file.verilog" enable="1"/>
+```
+
+### Firmware Text Mode API
+
+**Enable/Disable:**
+```cpp
+hdmi.enableTextMode();   // Switch to text mode (pattern 3)
+hdmi.disableTextMode();  // Switch back to color bars
+```
+
+**Screen Control:**
+```cpp
+hdmi.clearScreen();                     // Clear screen, reset cursor to 0,0
+hdmi.setCursor(x, y);                   // Set cursor position (0-79, 0-29)
+hdmi.setTextColor(fg, bg);             // Set foreground and background colors
+```
+
+**Text Output:**
+```cpp
+hdmi.writeChar('A');                    // Write single character at cursor
+hdmi.writeString("Hello World");       // Write string
+hdmi.print("Text");                     // Write text (no newline)
+hdmi.println("Text");                   // Write text with newline
+```
+
+**Cursor Query:**
+```cpp
+uint8_t x = hdmi.getCursorX();         // Get current X position (0-79)
+uint8_t y = hdmi.getCursorY();         // Get current Y position (0-29)
+```
+
+### Text Colors
+
+16 standard VGA colors available:
+
+| Value | Name | Value | Name |
+|-------|------|-------|------|
+| 0x00 | COLOR_BLACK | 0x08 | COLOR_DARK_GRAY |
+| 0x01 | COLOR_BLUE | 0x09 | COLOR_LIGHT_BLUE |
+| 0x02 | COLOR_GREEN | 0x0A | COLOR_LIGHT_GREEN |
+| 0x03 | COLOR_CYAN | 0x0B | COLOR_LIGHT_CYAN |
+| 0x04 | COLOR_RED | 0x0C | COLOR_LIGHT_RED |
+| 0x05 | COLOR_MAGENTA | 0x0D | COLOR_LIGHT_MAGENTA |
+| 0x06 | COLOR_BROWN | 0x0E | COLOR_YELLOW |
+| 0x07 | COLOR_LIGHT_GRAY | 0x0F | COLOR_WHITE |
+
+**Example:**
+```cpp
+// Green text on black background
+hdmi.setTextColor(COLOR_LIGHT_GREEN, COLOR_BLACK);
+hdmi.println("System Ready");
+
+// Yellow text on blue background
+hdmi.setTextColor(COLOR_YELLOW, COLOR_BLUE);
+hdmi.println("Warning!");
+```
+
+### Character RAM Register Map (Slave 2: 0x20-0x2F)
+
+| Address | Name | Access | Description |
+|---------|------|--------|-------------|
+| 0x20 | CONTROL | R/W | Control register (bit 0: clear screen) |
+| 0x21 | CURSOR_X | R/W | Cursor X position (0-79) |
+| 0x22 | CURSOR_Y | R/W | Cursor Y position (0-29) |
+| 0x23 | ATTR | R/W | Default attribute (FG/BG color) |
+| 0x24 | CHAR | W | Write character at cursor (auto-advance) |
+| 0x25 | ATTR_WR | W | Write attribute at cursor |
+| 0x26 | ADDR_HI | R/W | RAM address pointer (high nibble) |
+| 0x27 | ADDR_LO | R/W | RAM address pointer (low byte) |
+| 0x28 | DATA_WR | R/W | Direct RAM write with auto-increment |
+| 0x29 | ATTR_DATA | R/W | Direct attribute write with auto-increment |
+
+### Complete Example
+
+See `examples/papilio_hdmi_text_example/papilio_hdmi_text_example.ino` for a complete working example showing:
+- Text mode initialization
+- Color palette demonstration
+- Live counter display
+- Screen positioning and formatting
 
 ## Video Timing
 
@@ -200,15 +324,38 @@ Key files:
 HDMIController(SPIClass* spi, uint8_t csPin, uint8_t spiClk, uint8_t spiMosi, uint8_t spiMiso);
 ```
 
-**Methods:**
+**Video Control Methods:**
 - `void begin()` - Initialize HDMI controller
-- `void setVideoPattern(uint8_t pattern)` - Set test pattern (0-3)
+- `void setVideoPattern(uint8_t pattern)` - Set video mode (0-3)
 - `uint8_t getVideoPattern()` - Read current pattern
-- `uint8_t getVideoStatus()` - Read status register
+- `uint8_t getVideoStatus()` - Read status register (returns version 0x02 for text mode support)
 
-**Register Map (Wishbone addresses relative to base 0x10):**
-- `0x00` - Pattern mode (read/write)
-- `0x01` - Version/status (read-only)
+**Text Mode Methods:**
+- `void enableTextMode()` - Enable text mode (pattern 3)
+- `void disableTextMode()` - Disable text mode (return to color bars)
+- `void clearScreen()` - Clear screen and reset cursor to 0,0
+- `void setCursor(uint8_t x, uint8_t y)` - Set cursor position (x: 0-79, y: 0-29)
+- `void setTextColor(uint8_t fg, uint8_t bg)` - Set text colors (4-bit each)
+- `void writeChar(char c)` - Write single character at cursor
+- `void writeString(const char* str)` - Write string at cursor
+- `void print(const char* str)` - Write text without newline
+- `void println(const char* str)` - Write text with newline
+- `uint8_t getCursorX()` - Get current cursor X position
+- `uint8_t getCursorY()` - Get current cursor Y position
+
+**Video Register Map (Wishbone Slave 1: 0x10-0x1F):**
+- `0x10` - Pattern mode (read/write): 0=color bars, 1=grid, 2=grayscale, 3=text mode
+- `0x11` - Version/status (read-only): 0x02 indicates text mode support
+
+**Character RAM Register Map (Wishbone Slave 2: 0x20-0x2F):**
+- `0x20` - Control register (bit 0: clear screen trigger)
+- `0x21` - Cursor X position (0-79)
+- `0x22` - Cursor Y position (0-29)
+- `0x23` - Default attribute byte (foreground/background color)
+- `0x24` - Write character at cursor (auto-advances)
+- `0x25` - Write attribute at cursor
+- `0x26-0x27` - Direct RAM address pointer
+- `0x28-0x29` - Direct RAM/attribute access with auto-increment
 
 ## License
 

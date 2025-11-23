@@ -1,6 +1,9 @@
 // wb_video_ctrl.v
 // Wishbone wrapper for HDMI video output control
 // Slave 1: Base address 0x10-0x1F
+// Register map:
+//   0x10: Pattern mode (0=color bars, 1=grid, 2=grayscale, 3=text mode)
+//   0x11: Status/version
 
 module wb_video_ctrl (
     input wire clk,
@@ -15,6 +18,11 @@ module wb_video_ctrl (
     input wire wb_we_i,
     output reg wb_ack_o,
     
+    // Text mode character RAM interface (connect to wb_char_ram externally)
+    input wire [7:0] text_char_data,
+    input wire [7:0] text_attr_data,
+    output wire [11:0] text_char_addr,
+    
     // HDMI outputs
     output wire O_tmds_clk_p,
     output wire O_tmds_clk_n,
@@ -23,7 +31,7 @@ module wb_video_ctrl (
 );
 
     // Wishbone control registers
-    reg [7:0] pattern_mode;  // Address 0x10: Pattern mode selection
+    reg [7:0] pattern_mode;  // Address 0x10: Pattern mode selection (0-2=patterns, 3=text)
     
     // Wishbone bus handling
     wire wb_valid = wb_cyc_i & wb_stb_i;
@@ -49,7 +57,7 @@ module wb_video_ctrl (
                     // Read operations
                     case (wb_adr_i[3:0])
                         4'h0: wb_dat_o <= pattern_mode;
-                        4'h1: wb_dat_o <= 8'h01;  // Version/status
+                        4'h1: wb_dat_o <= 8'h02;  // Version 2 (supports text mode)
                         default: wb_dat_o <= 8'h00;
                     endcase
                 end
@@ -61,7 +69,13 @@ module wb_video_ctrl (
     video_top_wb u_video (
         .I_clk(clk),
         .I_rst_n(rst_n),
-        .I_pattern_mode(pattern_mode[1:0]),  // Use lower 2 bits for 4 patterns
+        .I_pattern_mode(pattern_mode[1:0]),  // Use lower 2 bits for 4 modes
+        
+        // Text mode character RAM interface
+        .I_text_char_data(text_char_data),
+        .I_text_attr_data(text_attr_data),
+        .O_text_char_addr(text_char_addr),
+        
         .O_tmds_clk_p(O_tmds_clk_p),
         .O_tmds_clk_n(O_tmds_clk_n),
         .O_tmds_data_p(O_tmds_data_p),

@@ -98,6 +98,79 @@ uint8_t HDMIController::wishboneRead8(uint16_t address) {
   return data;
 }
 
+// ============= Text Mode Functions =============
+
+void HDMIController::enableTextMode() {
+  setVideoPattern(PATTERN_TEXT_MODE);
+}
+
+void HDMIController::disableTextMode() {
+  setVideoPattern(PATTERN_COLOR_BARS);
+}
+
+void HDMIController::clearScreen() {
+  // Set clear screen bit in control register
+  wishboneWrite8(REG_CHARRAM_CONTROL, 0x01);
+  delay(10);  // Give time for clear to complete
+  setCursor(0, 0);
+}
+
+void HDMIController::setCursor(uint8_t x, uint8_t y) {
+  if (x < 80 && y < 30) {
+    wishboneWrite8(REG_CHARRAM_CURSOR_X, x);
+    wishboneWrite8(REG_CHARRAM_CURSOR_Y, y);
+  }
+}
+
+void HDMIController::setTextColor(uint8_t foreground, uint8_t background) {
+  uint8_t attr = ((background & 0x0F) << 4) | (foreground & 0x0F);
+  wishboneWrite8(REG_CHARRAM_ATTR, attr);
+}
+
+void HDMIController::writeChar(char c) {
+  if (c == '\n') {
+    // Move to next line
+    uint8_t y = wishboneRead8(REG_CHARRAM_CURSOR_Y);
+    if (y < 29) {
+      setCursor(0, y + 1);
+    } else {
+      // Scroll would go here - for now just wrap
+      setCursor(0, 0);
+    }
+  } else if (c == '\r') {
+    // Carriage return
+    uint8_t y = wishboneRead8(REG_CHARRAM_CURSOR_Y);
+    setCursor(0, y);
+  } else if (c >= 32 && c <= 126) {
+    // Printable character
+    wishboneWrite8(REG_CHARRAM_CHAR, (uint8_t)c);
+    // Cursor auto-advances in hardware
+  }
+}
+
+void HDMIController::writeString(const char* str) {
+  while (*str) {
+    writeChar(*str++);
+  }
+}
+
+void HDMIController::println(const char* str) {
+  writeString(str);
+  writeChar('\n');
+}
+
+void HDMIController::print(const char* str) {
+  writeString(str);
+}
+
+uint8_t HDMIController::getCursorX() {
+  return wishboneRead8(REG_CHARRAM_CURSOR_X);
+}
+
+uint8_t HDMIController::getCursorY() {
+  return wishboneRead8(REG_CHARRAM_CURSOR_Y);
+}
+
 // 32-bit write
 void HDMIController::wishboneWrite(uint32_t address, uint32_t data) {
   if (!_spi) return;
