@@ -38,14 +38,8 @@ module wb_char_ram (
     reg [7:0] char_ram [0:2399];
     reg [7:0] attr_ram [0:2399];
     
-    // Initialize RAM with spaces and default attribute
-    integer i;
-    initial begin
-        for (i = 0; i < 2400; i = i + 1) begin
-            char_ram[i] = 8'h20;  // Space
-            attr_ram[i] = 8'h07;  // White on black
-        end
-    end
+    // Note: RAM will be cleared by CPU on initialization
+    // No initial block needed for synthesis
     
     wire [11:0] cursor_addr = (cursor_y * 80) + cursor_x;
     wire wb_valid = wb_cyc_i & wb_stb_i;
