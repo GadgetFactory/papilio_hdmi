@@ -89,15 +89,46 @@ module video_top_wb
     );
     
     // Text mode generator (mode 3)
-    // For 720p, we'll display 80x30 characters scaled appropriately
-    // Character position from pixel position (assuming 640x480 scaled to 1280x720)
-    wire [9:0] pixel_x = De_hcnt;  // Horizontal pixel counter from testpattern would be better
-    wire [9:0] pixel_y = De_vcnt;  // Vertical pixel counter
+    // Create pixel counters for active video area (1280x720)
+    reg [11:0] pixel_x;
+    reg [11:0] pixel_y;
+    reg        de_prev;
     
-    // Simple text mode implementation using character RAM
+    always @(posedge pix_clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pixel_x <= 0;
+            pixel_y <= 0;
+            de_prev <= 0;
+        end else begin
+            de_prev <= tp0_de_in;
+            
+            if (tp0_de_in) begin
+                // During active video
+                if (pixel_x < 1279)
+                    pixel_x <= pixel_x + 1;
+                else begin
+                    pixel_x <= 0;
+                    if (pixel_y < 719)
+                        pixel_y <= pixel_y + 1;
+                    else
+                        pixel_y <= 0;
+                end
+            end else if (de_prev && !tp0_de_in) begin
+                // End of line
+                pixel_x <= 0;
+            end else if (!tp0_vs_in) begin
+                // During vsync, reset frame
+                pixel_y <= 0;
+                pixel_x <= 0;
+            end
+        end
+    end
+    
     // Calculate character position (80x30 grid, scaled for 720p)
-    wire [6:0] char_x = pixel_x[9:4];  // Divide by 16 for 80 chars across 1280 pixels
-    wire [4:0] char_y = pixel_y[8:4];  // Divide by 16 for 45 lines (use top 30)
+    // 1280 pixels / 80 chars = 16 pixels per char
+    // 720 lines / 30 rows = 24 lines per row (using first 30 of 45 possible)
+    wire [6:0] char_x = pixel_x[10:4];  // Divide by 16 for 80 chars across 1280 pixels  
+    wire [4:0] char_y = pixel_y[9:4];   // Divide by 16 for 45 lines (use top 30)
     wire [3:0] pixel_in_char_x = pixel_x[3:0];
     wire [3:0] pixel_in_char_y = pixel_y[3:0];
     
