@@ -40,7 +40,7 @@ module wb_video_ctrl (
         if (!rst_n) begin
             wb_ack_o <= 0;
             wb_dat_o <= 8'h00;
-            pattern_mode <= 8'h00;  // Default: color bars
+            pattern_mode <= 8'h03;  // Default: text mode
         end else begin
             wb_ack_o <= 0;
             

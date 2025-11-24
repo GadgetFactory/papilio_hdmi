@@ -56,13 +56,10 @@ module wb_char_ram (
         end else begin
             wb_ack_o <= 0;
             
-            // Handle clear screen bit
+            // Handle clear screen bit - disabled for synthesis
+            // Clear screen is now handled in firmware by writing spaces
             if (control_reg[0]) begin
                 control_reg[0] <= 0;
-                for (i = 0; i < 2400; i = i + 1) begin
-                    char_ram[i] <= 8'h20;
-                    attr_ram[i] <= default_attr;
-                end
             end
             
             if (wb_valid && !wb_ack_o) begin
