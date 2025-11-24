@@ -1,107 +1,135 @@
 // wb_text_mode.v
-// Text mode video controller with 80x30 character display
-// Uses 8x8 font for 640x480 output (actually 640x240 with 2x vertical scaling)
+// Text mode video generator based on DesignLab HQVGA example
+// 80x26 characters @ 16x16 pixels each = 1280x416 pixels
+// Simple white-on-blue text for testing
 
 module wb_text_mode (
     input wire clk,
-    input wire clk_pixel,
     input wire rst_n,
+    input wire enable,
     
-    // Wishbone interface
-    input wire [7:0] wb_adr_i,
-    input wire [7:0] wb_dat_i,
-    output reg [7:0] wb_dat_o,
-    input wire wb_cyc_i,
-    input wire wb_stb_i,
-    input wire wb_we_i,
-    output reg wb_ack_o,
-    
-    // Video timing inputs (from hdmi_timing)
+    // Video timing inputs
+    input wire [11:0] pixel_x,
+    input wire [11:0] pixel_y,
     input wire video_active,
-    input wire [9:0] pixel_x,
-    input wire [9:0] pixel_y,
+    
+    // Character RAM interface
+    output wire [10:0] char_addr,  // 0-2047
+    input wire [7:0] char_data,
     
     // RGB output
-    output reg [7:0] red,
-    output reg [7:0] green,
-    output reg [7:0] blue
+    output reg [7:0] text_r,
+    output reg [7:0] text_g,
+    output reg [7:0] text_b,
+    output reg text_valid
 );
 
-    // Character RAM (80x30 = 2400 chars)
-    wire [11:0] char_addr;
-    wire [7:0] char_code;
-    wire [7:0] char_attr;
+    // Text mode: 80x26 characters, 8x8 font, 16x16 pixels per character
+    // 80 * 16 = 1280 pixels wide, 26 * 16 = 416 pixels tall
+    wire [6:0] char_x = pixel_x[10:4];  // 0-79
+    wire [4:0] char_y = pixel_y[8:4];   // 0-31 possible, but limit to 0-25
     
-    // Font ROM
-    wire [7:0] font_pixels;
-    wire [2:0] font_row;
+    // Pixel within character (0-15)
+    wire [3:0] pixel_in_char_x = pixel_x[3:0];
+    wire [3:0] pixel_in_char_y = pixel_y[3:0];
     
-    // Calculate character position from pixel position
-    wire [6:0] char_x = pixel_x[9:3];  // 0-79 (divide by 8)
-    wire [4:0] char_y = pixel_y[8:4];  // 0-29 (divide by 16, 2x vertical)
-    wire [2:0] pixel_in_char_x = pixel_x[2:0];
-    wire [2:0] pixel_in_char_y = pixel_y[3:1];  // Use [3:1] for 2x vertical scaling
+    // Font position (divide by 2 for 2x scaling)
+    wire [2:0] font_col = pixel_in_char_x[3:1];  // 0-7
+    wire [2:0] font_row = pixel_in_char_y[3:1];  // 0-7
     
-    assign char_addr = (char_y * 80) + char_x;
-    assign font_row = pixel_in_char_y;
+    // Check if we're within the valid text area (first 416 pixels = 26 rows of 16)
+    wire in_text_area = (pixel_y < 12'd416);
     
-    // Character RAM instance
-    char_ram_8x8 char_ram_inst (
-        .v_clk(clk_pixel),
-        .v_en(video_active && char_x < 80 && char_y < 30),
-        .v_addr(char_addr),
-        .v_char(char_code),
-        .v_attr(char_attr),
-        
-        .wb_clk(clk),
-        .wb_addr(wb_adr_i[11:0]),
-        .wb_dat_i(wb_dat_i),
-        .wb_dat_o(wb_dat_o),
-        .wb_we(wb_we_i && wb_cyc_i && wb_stb_i),
-        .wb_en(wb_cyc_i && wb_stb_i),
-        .wb_addr_sel(wb_adr_i[12])  // bit 12: 0=char, 1=attr
-    );
+    // Character address: row * 80 + column
+    wire [11:0] char_addr_calc = ({4'd0, char_y} * 7'd80) + {4'd0, char_x};
+    assign char_addr = char_addr_calc[10:0];
     
-    // Font ROM instance
-    font_rom_8x8 font_rom_inst (
-        .clk(clk_pixel),
-        .char_code(char_code),
-        .row(font_row),
-        .pixels(font_pixels)
-    );
+    // Pipeline stage 1: Delay font_row and font_col to match character RAM latency (1 cycle)
+    // Then delay again to match font ROM latency (1 cycle) = 2 total delays
+    reg [2:0] font_row_d1;
+    reg [2:0] font_col_d1, font_col_d2;
+    reg video_active_d1, video_active_d2;
+    reg in_text_area_d1, in_text_area_d2;
     
-    // Wishbone acknowledge
     always @(posedge clk) begin
-        wb_ack_o <= wb_cyc_i && wb_stb_i && !wb_ack_o;
+        font_row_d1 <= font_row;     // Delay font_row by 1 cycle to match char_data
+        font_col_d1 <= font_col;
+        font_col_d2 <= font_col_d1;
+        video_active_d1 <= video_active;
+        video_active_d2 <= video_active_d1;
+        in_text_area_d1 <= in_text_area;
+        in_text_area_d2 <= in_text_area_d1;
     end
     
-    // Pixel generation - extract the appropriate bit from font data
-    reg pixel_on;
-    always @(posedge clk_pixel) begin
-        if (video_active && char_x < 80 && char_y < 30) begin
-            pixel_on <= font_pixels[7 - pixel_in_char_x];
-        end else begin
-            pixel_on <= 1'b0;
-        end
+    // Font ROM instantiation - use IMMEDIATE signals, no delays
+    wire [7:0] font_row_data;
+    font_rom_8x8 font_rom (
+        .clk(clk),
+        .char_code(char_data),  // Use character from RAM
+        .row(font_row),  // Use immediate font_row, not delayed
+        .pixels(font_row_data)
+    );
+    
+    // Extract pixel from font row - try both to see which works
+    wire font_pixel_reversed = font_row_data[7 - font_col];  // VGA standard (MSB first)
+    wire font_pixel_direct = font_row_data[font_col];        // Direct indexing
+    
+    // Fixed colors
+    localparam [23:0] WHITE = 24'hFFFFFF;
+    localparam [23:0] BLACK = 24'h000000;
+    localparam [23:0] BLUE  = 24'h0000AA;
+    
+    // Pipeline stage 2: Register font ROM output and extract pixel
+    reg [7:0] font_row_data_d1;
+    reg [2:0] font_col_d3;
+    reg video_active_d3;
+    reg in_text_area_d3;
+    
+    always @(posedge clk) begin
+        font_row_data_d1 <= font_row_data;
+        font_col_d3 <= font_col_d2;
+        video_active_d3 <= video_active_d2;
+        in_text_area_d3 <= in_text_area_d2;
     end
     
-    // Color generation from attribute byte
-    // Attribute format: [7:4] = background color, [3:0] = foreground color
-    // Color format (4-bit): [3]=bright, [2]=red, [1]=green, [0]=blue
-    wire [3:0] fg_color = char_attr[3:0];
-    wire [3:0] bg_color = char_attr[7:4];
-    wire [3:0] active_color = pixel_on ? fg_color : bg_color;
+    // Extract pixel from delayed font row
+    wire font_pixel = font_row_data_d1[7 - font_col_d3];  // VGA standard (MSB first)
     
-    always @(posedge clk_pixel) begin
-        if (video_active) begin
-            // Convert 4-bit color to 8-bit RGB
-            red   <= {active_color[2], active_color[3], 6'b0} | (active_color[2] ? 8'h3F : 8'h00);
-            green <= {active_color[1], active_color[3], 6'b0} | (active_color[1] ? 8'h3F : 8'h00);
-            blue  <= {active_color[0], active_color[3], 6'b0} | (active_color[0] ? 8'h3F : 8'h00);
+    // Output logic with proper pipeline
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            text_r <= 8'h00;
+            text_g <= 8'h00;
+            text_b <= 8'h00;
+            text_valid <= 0;
         end else begin
-            red   <= 8'h00;
-            green <= 8'h00;
-            blue  <= 8'h00;
+            text_valid <= video_active_d3;
+            if (video_active_d3) begin
+                if (in_text_area_d3) begin
+                    // Within text area: show text
+                    if (font_pixel) begin
+                        // Foreground: white
+                        text_r <= WHITE[23:16];
+                        text_g <= WHITE[15:8];
+                        text_b <= WHITE[7:0];
+                    end else begin
+                        // Background: blue
+                        text_r <= BLUE[23:16];
+                        text_g <= BLUE[15:8];
+                        text_b <= BLUE[7:0];
+                    end
+                end else begin
+                    // Outside text area: show BLACK (not blue)
+                    text_r <= BLACK[23:16];
+                    text_g <= BLACK[15:8];
+                    text_b <= BLACK[7:0];
+                end
+            end else begin
+                // Inactive video - show black
+                text_r <= 8'h00;
+                text_g <= 8'h00;
+                text_b <= 8'h00;
+            end
         end
     end
 

@@ -10,8 +10,7 @@ module video_top_wb
     
     // Text mode character RAM interface (connected externally to wb_char_ram)
     input      [7:0]  I_text_char_data,  // Character data from RAM
-    input      [7:0]  I_text_attr_data,  // Attribute data from RAM
-    output reg [11:0] O_text_char_addr,  // Address to character RAM
+    output wire [10:0] O_text_char_addr,  // Address to character RAM (0-2047)
     
     output            O_tmds_clk_p    ,
     output            O_tmds_clk_n    ,
@@ -93,66 +92,59 @@ module video_top_wb
     reg [11:0] pixel_x;
     reg [11:0] pixel_y;
     reg        de_prev;
+    reg        vs_prev;
     
     always @(posedge pix_clk or negedge I_rst_n) begin
         if (!I_rst_n) begin
             pixel_x <= 0;
             pixel_y <= 0;
             de_prev <= 0;
+            vs_prev <= 1;
         end else begin
             de_prev <= tp0_de_in;
+            vs_prev <= tp0_vs_in;
             
+            // Handle vertical sync - reset on falling edge
+            if (vs_prev && !tp0_vs_in) begin
+                pixel_y <= 0;
+            end
+            
+            // Handle horizontal pixels
             if (tp0_de_in) begin
-                // During active video
-                if (pixel_x < 1279)
+                // During active video, increment X
+                if (pixel_x < 1279) begin
                     pixel_x <= pixel_x + 1;
-                else begin
+                end else begin
                     pixel_x <= 0;
-                    if (pixel_y < 719)
-                        pixel_y <= pixel_y + 1;
-                    else
-                        pixel_y <= 0;
                 end
             end else if (de_prev && !tp0_de_in) begin
-                // End of line
+                // Falling edge of DE - end of active line
                 pixel_x <= 0;
-            end else if (!tp0_vs_in) begin
-                // During vsync, reset frame
-                pixel_y <= 0;
-                pixel_x <= 0;
+                if (pixel_y < 719)
+                    pixel_y <= pixel_y + 1;
             end
         end
     end
     
-    // Calculate character position (80x30 grid, scaled for 720p)
-    // 1280 pixels / 80 chars = 16 pixels per char
-    // 720 lines / 30 rows = 24 lines per row (using first 30 of 45 possible)
-    wire [6:0] char_x = pixel_x[10:4];  // Divide by 16 for 80 chars across 1280 pixels  
-    wire [4:0] char_y = pixel_y[9:4];   // Divide by 16 for 45 lines (use top 30)
-    wire [3:0] pixel_in_char_x = pixel_x[3:0];
-    wire [3:0] pixel_in_char_y = pixel_y[3:0];
-    
-    // Character address calculation (80x30 = 2400 max)
-    wire [11:0] char_addr = (char_y < 30) ? ((char_y * 80) + char_x[6:0]) : 12'd0;
-    
-    always @(posedge pix_clk) begin
-        O_text_char_addr <= char_addr;
-    end
-    
-    // Font ROM lookup would go here - for now, simple block display
-    // This is a placeholder - proper implementation would use font_rom_8x8 module
-    wire [7:0] font_row = 8'hFF;  // Placeholder: all pixels on
-    wire pixel_on = (char_x < 80 && char_y < 30) ? font_row[7 - pixel_in_char_x[2:0]] : 1'b0;
-    
-    // Color from attribute byte (simplified)
-    wire [3:0] fg_color = I_text_attr_data[3:0];
-    wire [3:0] bg_color = I_text_attr_data[7:4];
-    wire [3:0] active_color = pixel_on ? fg_color : bg_color;
-    
-    // Convert 4-bit color to 8-bit RGB
-    assign text_data_r = tp0_de_in ? ({active_color[2], active_color[3], 6'b0} | (active_color[2] ? 8'h3F : 8'h00)) : 8'h00;
-    assign text_data_g = tp0_de_in ? ({active_color[1], active_color[3], 6'b0} | (active_color[1] ? 8'h3F : 8'h00)) : 8'h00;
-    assign text_data_b = tp0_de_in ? ({active_color[0], active_color[3], 6'b0} | (active_color[0] ? 8'h3F : 8'h00)) : 8'h00;
+    // Text mode generator
+    wire text_valid;
+    wb_text_mode text_mode_inst (
+        .clk(pix_clk),
+        .rst_n(hdmi4_rst_n),
+        .enable(text_mode_active),
+        
+        .pixel_x(pixel_x),
+        .pixel_y(pixel_y),
+        .video_active(tp0_de_in),
+        
+        .char_addr(O_text_char_addr),
+        .char_data(I_text_char_data),
+        
+        .text_r(text_data_r),
+        .text_g(text_data_g),
+        .text_b(text_data_b),
+        .text_valid(text_valid)
+    );
     
     always@(posedge pix_clk) begin
         vs_r <= tp0_vs_in;
@@ -186,22 +178,21 @@ module video_top_wb
     defparam u_clkdiv.DIV_MODE="5";
     defparam u_clkdiv.GSREN="false";
     
-    // DVI transmitter - uses muxed video output
-    DVI_TX_Top DVI_TX_Top_inst
-    (
-        .I_rst_n       (hdmi4_rst_n   ),
-        .I_serial_clk  (serial_clk    ),
-        .I_rgb_clk     (pix_clk       ),
-        .I_rgb_vs      (tp0_vs_in     ), 
-        .I_rgb_hs      (tp0_hs_in     ),    
-        .I_rgb_de      (tp0_de_in     ), 
-        .I_rgb_r       (video_r       ),  // Muxed output
-        .I_rgb_g       (video_g       ),  // Muxed output
-        .I_rgb_b       (video_b       ),  // Muxed output
-        .O_tmds_clk_p  (O_tmds_clk_p  ),
-        .O_tmds_clk_n  (O_tmds_clk_n  ),
-        .O_tmds_data_p (O_tmds_data_p ),
-        .O_tmds_data_n (O_tmds_data_n )
+    // Simple HDMI/DVI transmitter using our timing
+    simple_hdmi_tx hdmi_tx (
+        .clk_pixel(pix_clk),
+        .clk_serial(serial_clk),
+        .rst_n(hdmi4_rst_n),
+        .video_r(video_r),
+        .video_g(video_g),
+        .video_b(video_b),
+        .video_de(tp0_de_in),
+        .video_hsync(tp0_hs_in),
+        .video_vsync(tp0_vs_in),
+        .tmds_clk_p(O_tmds_clk_p),
+        .tmds_clk_n(O_tmds_clk_n),
+        .tmds_data_p(O_tmds_data_p),
+        .tmds_data_n(O_tmds_data_n)
     );
 
 endmodule
