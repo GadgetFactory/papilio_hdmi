@@ -73,7 +73,6 @@ module wb_video_ctrl (
         
         // Text mode character RAM interface
         .I_text_char_data(text_char_data),
-        .I_text_attr_data(text_attr_data),
         .O_text_char_addr(text_char_addr),
         
         .O_tmds_clk_p(O_tmds_clk_p),

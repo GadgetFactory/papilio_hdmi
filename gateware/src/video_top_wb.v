@@ -178,21 +178,76 @@ module video_top_wb
     defparam u_clkdiv.DIV_MODE="5";
     defparam u_clkdiv.GSREN="false";
     
-    // Simple HDMI/DVI transmitter using our timing
-    simple_hdmi_tx hdmi_tx (
-        .clk_pixel(pix_clk),
-        .clk_serial(serial_clk),
-        .rst_n(hdmi4_rst_n),
-        .video_r(video_r),
-        .video_g(video_g),
-        .video_b(video_b),
-        .video_de(tp0_de_in),
-        .video_hsync(tp0_hs_in),
-        .video_vsync(tp0_vs_in),
-        .tmds_clk_p(O_tmds_clk_p),
-        .tmds_clk_n(O_tmds_clk_n),
-        .tmds_data_p(O_tmds_data_p),
-        .tmds_data_n(O_tmds_data_n)
+    // TMDS encoders for open source HDMI transmitter
+    wire rst = ~hdmi4_rst_n;
+    wire [9:0] tmds_ch0, tmds_ch1, tmds_ch2;
+    
+    tmds_encoder u_encoder_ch0 (
+        .clk(pix_clk),
+        .rst(rst),
+        .video_active(tp0_de_in),
+        .data_in(video_b),
+        .c0(tp0_hs_in),
+        .c1(tp0_vs_in),
+        .tmds_out(tmds_ch0)
     );
-
+    
+    tmds_encoder u_encoder_ch1 (
+        .clk(pix_clk),
+        .rst(rst),
+        .video_active(tp0_de_in),
+        .data_in(video_g),
+        .c0(1'b0),
+        .c1(1'b0),
+        .tmds_out(tmds_ch1)
+    );
+    
+    tmds_encoder u_encoder_ch2 (
+        .clk(pix_clk),
+        .rst(rst),
+        .video_active(tp0_de_in),
+        .data_in(video_r),
+        .c0(1'b0),
+        .c1(1'b0),
+        .tmds_out(tmds_ch2)
+    );
+    
+    // TMDS shift registers for serialization (10:1)
+    reg [9:0] shift_ch0, shift_ch1, shift_ch2, shift_clk;
+    reg [3:0] bit_counter;
+    
+    always @(posedge pix_clk or posedge rst) begin
+        if (rst) begin
+            shift_ch0 <= 10'b1101010100;
+            shift_ch1 <= 10'b1101010100;
+            shift_ch2 <= 10'b1101010100;
+            shift_clk <= 10'b0000011111;
+            bit_counter <= 0;
+        end else begin
+            if (bit_counter == 9) begin
+                shift_ch0 <= tmds_ch0;
+                shift_ch1 <= tmds_ch1;
+                shift_ch2 <= tmds_ch2;
+                shift_clk <= 10'b0000011111;
+                bit_counter <= 0;
+            end else begin
+                shift_ch0 <= {1'b0, shift_ch0[9:1]};
+                shift_ch1 <= {1'b0, shift_ch1[9:1]};
+                shift_ch2 <= {1'b0, shift_ch2[9:1]};
+                shift_clk <= {1'b0, shift_clk[9:1]};
+                bit_counter <= bit_counter + 1;
+            end
+        end
+    end
+    
+    // Output differential pairs
+    assign O_tmds_data_p[0] = shift_ch0[0];
+    assign O_tmds_data_n[0] = ~shift_ch0[0];
+    assign O_tmds_data_p[1] = shift_ch1[0];
+    assign O_tmds_data_n[1] = ~shift_ch1[0];
+    assign O_tmds_data_p[2] = shift_ch2[0];
+    assign O_tmds_data_n[2] = ~shift_ch2[0];
+    assign O_tmds_clk_p = shift_clk[0];
+    assign O_tmds_clk_n = ~shift_clk[0];
+    
 endmodule
