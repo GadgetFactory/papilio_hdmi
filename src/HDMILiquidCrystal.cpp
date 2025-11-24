@@ -67,18 +67,82 @@ void HDMILiquidCrystal::blink() {
 }
 
 void HDMILiquidCrystal::scrollDisplayLeft() {
-  // Shift the display window to the right (content appears to scroll left)
-  if (_displayOffsetX + _cols < 80) {
-    _displayOffsetX++;
-    updateCursor();
+  // Software scrolling: shift all characters one position left
+  for (uint8_t row = 0; row < _rows; row++) {
+    uint16_t rowStart = row * 80;
+    // Shift characters left within the LCD window
+    for (uint8_t col = 0; col < _cols - 1; col++) {
+      uint16_t srcAddr = rowStart + _displayOffsetX + col + 1;
+      uint16_t dstAddr = rowStart + _displayOffsetX + col;
+      
+      // Read character from source position using ram_addr_ptr
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (srcAddr >> 8) & 0xFF);
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, srcAddr & 0xFF);
+      uint8_t ch = _hdmi->readRegister(REG_CHARRAM_DATA_WR);  // Reads from ram_addr_ptr
+      
+      // Read attribute from source position (ram_addr_ptr was auto-incremented, so set it again)
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (srcAddr >> 8) & 0xFF);
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, srcAddr & 0xFF);
+      uint8_t attr = _hdmi->readRegister(REG_CHARRAM_ATTR_DATA);  // Reads attr from ram_addr_ptr
+      
+      // Write to destination position
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (dstAddr >> 8) & 0xFF);
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, dstAddr & 0xFF);
+      _hdmi->writeRegister(REG_CHARRAM_DATA_WR, ch);
+      
+      // Write attribute (need to set address again since DATA_WR auto-incremented)
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (dstAddr >> 8) & 0xFF);
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, dstAddr & 0xFF);
+      _hdmi->writeRegister(REG_CHARRAM_ATTR_DATA, attr);
+    }
+    // Fill last position with space
+    uint16_t lastAddr = rowStart + _displayOffsetX + _cols - 1;
+    _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (lastAddr >> 8) & 0xFF);
+    _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, lastAddr & 0xFF);
+    _hdmi->writeRegister(REG_CHARRAM_DATA_WR, ' ');
+    _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (lastAddr >> 8) & 0xFF);
+    _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, lastAddr & 0xFF);
+    _hdmi->writeRegister(REG_CHARRAM_ATTR_DATA, _currentAttr);
   }
 }
 
 void HDMILiquidCrystal::scrollDisplayRight() {
-  // Shift the display window to the left (content appears to scroll right)
-  if (_displayOffsetX > 0) {
-    _displayOffsetX--;
-    updateCursor();
+  // Software scrolling: shift all characters one position right
+  for (uint8_t row = 0; row < _rows; row++) {
+    uint16_t rowStart = row * 80;
+    // Shift characters right within the LCD window (go backwards to avoid overwriting)
+    for (int8_t col = _cols - 1; col > 0; col--) {
+      uint16_t srcAddr = rowStart + _displayOffsetX + col - 1;
+      uint16_t dstAddr = rowStart + _displayOffsetX + col;
+      
+      // Read character from source position using ram_addr_ptr
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (srcAddr >> 8) & 0xFF);
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, srcAddr & 0xFF);
+      uint8_t ch = _hdmi->readRegister(REG_CHARRAM_DATA_WR);  // Reads from ram_addr_ptr
+      
+      // Read attribute from source position (ram_addr_ptr was auto-incremented, so set it again)
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (srcAddr >> 8) & 0xFF);
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, srcAddr & 0xFF);
+      uint8_t attr = _hdmi->readRegister(REG_CHARRAM_ATTR_DATA);  // Reads attr from ram_addr_ptr
+      
+      // Write to destination position
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (dstAddr >> 8) & 0xFF);
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, dstAddr & 0xFF);
+      _hdmi->writeRegister(REG_CHARRAM_DATA_WR, ch);
+      
+      // Write attribute (need to set address again since DATA_WR auto-incremented)
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (dstAddr >> 8) & 0xFF);
+      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, dstAddr & 0xFF);
+      _hdmi->writeRegister(REG_CHARRAM_ATTR_DATA, attr);
+    }
+    // Fill first position with space
+    uint16_t firstAddr = rowStart + _displayOffsetX;
+    _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (firstAddr >> 8) & 0xFF);
+    _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, firstAddr & 0xFF);
+    _hdmi->writeRegister(REG_CHARRAM_DATA_WR, ' ');
+    _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (firstAddr >> 8) & 0xFF);
+    _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, firstAddr & 0xFF);
+    _hdmi->writeRegister(REG_CHARRAM_ATTR_DATA, _currentAttr);
   }
 }
 
