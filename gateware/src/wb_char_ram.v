@@ -24,7 +24,12 @@ module wb_char_ram (
     // Video readout interface (for HDMI display)
     input wire [11:0] video_char_addr,
     output reg [7:0] video_char_data,
-    output reg [7:0] video_attr_data
+    output reg [7:0] video_attr_data,
+    
+    // Custom font RAM interface (for font_rom_8x8)
+    output reg custom_font_we,
+    output reg [5:0] custom_font_addr,
+    output reg [7:0] custom_font_data
 );
 
     // Control registers
@@ -33,6 +38,10 @@ module wb_char_ram (
     reg [4:0] cursor_y;       // 0x22 (0-29)
     reg [7:0] default_attr;   // 0x23 (foreground/background color)
     reg [11:0] ram_addr_ptr;  // Auto-increment pointer for RAM access
+    reg [5:0] font_addr;      // 0x2A Custom font address
+    reg [7:0] font_data_reg;  // 0x2B Custom font data register
+    reg [5:0] font_addr;      // 0x0A: Custom font address (0-63)
+    reg [7:0] font_data_reg;  // 0x0B: Custom font data
     
     // Character RAM (80x30 = 2400 bytes)
     reg [7:0] char_ram [0:2399];
@@ -53,8 +62,14 @@ module wb_char_ram (
             cursor_y <= 5'd0;
             default_attr <= 8'h07;  // White on black
             ram_addr_ptr <= 12'd0;
+            font_addr <= 6'd0;
+            font_data_reg <= 8'd0;
+            custom_font_we <= 0;
+            custom_font_addr <= 6'd0;
+            custom_font_data <= 8'd0;
         end else begin
             wb_ack_o <= 0;
+            custom_font_we <= 0;  // Default: no write to custom font
             
             // Handle clear screen bit - disabled for synthesis
             // Clear screen is now handled in firmware by writing spaces
@@ -104,6 +119,16 @@ module wb_char_ram (
                                 ram_addr_ptr <= ram_addr_ptr + 1;
                             end
                         end
+                        4'hA: begin  // Set custom font address
+                            font_addr <= wb_dat_i[5:0];
+                        end
+                        4'hB: begin  // Write custom font data
+                            font_data_reg <= wb_dat_i;
+                            custom_font_we <= 1;
+                            custom_font_addr <= font_addr;
+                            custom_font_data <= wb_dat_i;
+                            font_addr <= font_addr + 1;  // Auto-increment
+                        end
                         default: ;
                     endcase
                 end else begin
@@ -129,6 +154,8 @@ module wb_char_ram (
                                 ram_addr_ptr <= ram_addr_ptr + 1;
                             end
                         end
+                        4'hA: wb_dat_o <= {2'b0, font_addr};
+                        4'hB: wb_dat_o <= font_data_reg;
                         default: wb_dat_o <= 8'h00;
                     endcase
                 end

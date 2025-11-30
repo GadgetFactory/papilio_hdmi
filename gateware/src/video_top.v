@@ -70,7 +70,8 @@ end
 assign  running = (run_cnt < 32'd14_000_000) ? 1'b1 : 1'b0;
 
 //===========================================================================
-//testpattern
+//testpattern - Using 720p output with color bars
+//The HQVGA 160x120 can be scaled 8x to fit 1280x720 (with black bars)
 testpattern testpattern_inst
 (
     .I_pxl_clk   (pix_clk            ),//pixel clock

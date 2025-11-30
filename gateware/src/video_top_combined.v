@@ -353,6 +353,12 @@ end
 // ==============================================================================
 // Text Mode Generator (80x26 @ 16x16 pixels = 1280x416)
 // ==============================================================================
+// Replicating wb_text_mode.v pipeline exactly:
+// - char_ram read is registered (1 cycle latency like external RAM)
+// - Font ROM receives: registered char_data, immediate font_row
+// - Font ROM has 1-cycle internal register
+// - font_col needs 2 additional delays after ROM to match output
+
 wire [6:0] char_col = active_x[10:4];  // 0-79
 wire [4:0] char_row = active_y[8:4];   // 0-25
 wire [2:0] font_col = active_x[3:1];   // 0-7 (2x scaled)
@@ -361,13 +367,9 @@ wire [2:0] font_row = active_y[3:1];   // 0-7 (2x scaled)
 wire in_text_area = (active_y < 12'd416);  // 26 rows * 16 pixels
 wire [11:0] text_char_addr = (char_row * 80) + char_col;
 
-// Character lookup (pipeline stage 1)
+// Character RAM read - registered output (like external RAM with 1 cycle latency)
 reg [7:0] text_char_data;
 reg [7:0] text_attr_data;
-reg [2:0] font_col_d1, font_row_d1;
-reg in_text_area_d1;
-reg hdmi_de_text_d1;
-
 always @(posedge pix_clk) begin
     if (text_char_addr < 2400) begin
         text_char_data <= char_ram[text_char_addr];
@@ -376,42 +378,55 @@ always @(posedge pix_clk) begin
         text_char_data <= 8'h20;  // Space
         text_attr_data <= 8'h0F;  // White on black
     end
-    font_col_d1 <= font_col;
-    font_row_d1 <= font_row;
-    in_text_area_d1 <= in_text_area;
-    hdmi_de_text_d1 <= hdmi_de;
 end
 
-// Font ROM lookup (pipeline stage 2)
+// Pipeline stage 1: Delay font_row and font_col to match char RAM latency
+reg [2:0] font_row_d1;
+reg [2:0] font_col_d1, font_col_d2;
+reg in_text_area_d1, in_text_area_d2;
+reg hdmi_de_d1, hdmi_de_d2;
+
+always @(posedge pix_clk) begin
+    font_row_d1 <= font_row;
+    font_col_d1 <= font_col;
+    font_col_d2 <= font_col_d1;
+    in_text_area_d1 <= in_text_area;
+    in_text_area_d2 <= in_text_area_d1;
+    hdmi_de_d1 <= hdmi_de;
+    hdmi_de_d2 <= hdmi_de_d1;
+end
+
+// Font ROM - use registered char_data (d1) and IMMEDIATE font_row (like wb_text_mode.v)
 wire [7:0] font_pixels;
 font_rom_8x8 u_font_rom (
     .clk(pix_clk),
-    .char_code(text_char_data),
-    .row(font_row_d1),
-    .pixels(font_pixels),
+    .char_code(text_char_data),  // Registered from char_ram (d1)
+    .row(font_row),              // IMMEDIATE - matches wb_text_mode.v
+    .pixels(font_pixels),        // Output valid at d2 (ROM internal register)
     .custom_font_we(1'b0),
     .custom_font_addr(6'd0),
     .custom_font_data(8'd0)
 );
 
+// Pipeline stage 2: Register font ROM output
 reg [7:0] font_pixels_d1;
-reg [2:0] font_col_d2;
-reg [7:0] text_attr_d1;
-reg in_text_area_d2;
-reg hdmi_de_text_d2;
+reg [2:0] font_col_d3;
+reg [7:0] text_attr_d2;
+reg in_text_area_d3;
+reg hdmi_de_d3;
 
 always @(posedge pix_clk) begin
     font_pixels_d1 <= font_pixels;
-    font_col_d2 <= font_col_d1;
-    text_attr_d1 <= text_attr_data;
-    in_text_area_d2 <= in_text_area_d1;
-    hdmi_de_text_d2 <= hdmi_de_text_d1;
+    font_col_d3 <= font_col_d2;
+    text_attr_d2 <= text_attr_data;  // text_attr_data is already d1 (from char_ram)
+    in_text_area_d3 <= in_text_area_d2;
+    hdmi_de_d3 <= hdmi_de_d2;
 end
 
-// Font pixel extraction and color
-wire font_pixel = font_pixels_d1[7 - font_col_d2];
-wire [3:0] fg_color = text_attr_d1[3:0];
-wire [3:0] bg_color = text_attr_d1[7:4];
+// Font pixel extraction - font_col_d3 matches font_pixels_d1 timing
+wire font_pixel = font_pixels_d1[7 - font_col_d3];
+wire [3:0] fg_color = text_attr_d2[3:0];
+wire [3:0] bg_color = text_attr_d2[7:4];
 
 // Convert 4-bit color to RGB
 function [23:0] color4_to_rgb;
@@ -440,7 +455,7 @@ endfunction
 
 reg [7:0] text_r, text_g, text_b;
 always @(posedge pix_clk) begin
-    if (hdmi_de_text_d2 && in_text_area_d2) begin
+    if (hdmi_de_d3 && in_text_area_d3) begin
         if (font_pixel) begin
             {text_r, text_g, text_b} <= color4_to_rgb(fg_color);
         end else begin

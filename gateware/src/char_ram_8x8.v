@@ -61,23 +61,40 @@ endmodule
 
 // font_rom_8x8.v
 // 8x8 font ROM containing standard ASCII characters
+// with custom font RAM for characters 0x00-0x07 (LCD custom characters)
 (* syn_keep = "true" *)
 module font_rom_8x8 (
     input wire clk,
     input wire [7:0] char_code,
     input wire [2:0] row,
-    output reg [7:0] pixels
+    output reg [7:0] pixels,
+    
+    // Custom font RAM interface (for LCD createChar support)
+    input wire custom_font_we,
+    input wire [5:0] custom_font_addr,  // 8 chars * 8 rows = 6 bits
+    input wire [7:0] custom_font_data
 );
 
+    // Custom font RAM for characters 0x00-0x07 (8 chars * 8 rows = 64 bytes)
+    reg [7:0] custom_font_ram [0:63];
+    
     // Font ROM - 256 characters x 8 rows x 8 pixels
     // Using standard VGA 8x8 font data
     wire [10:0] addr = {char_code, row};
+    
+    // Check if this is a custom character (0x00-0x07)
+    wire is_custom = (char_code[7:3] == 5'b00000);  // Characters 0x00-0x07
+    wire [5:0] custom_addr = {char_code[2:0], row};
     
     // Registered lookup for font data to prevent optimization
     reg [7:0] pixels_comb;
     
     always @(posedge clk) begin
-        pixels <= pixels_comb;
+        if (custom_font_we) begin
+            custom_font_ram[custom_font_addr] <= custom_font_data;
+        end
+        
+        pixels <= is_custom ? custom_font_ram[custom_addr] : pixels_comb;
     end
     
     // Combinational lookup for font data

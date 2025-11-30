@@ -139,6 +139,15 @@ public:
    */
   void setColor(uint8_t foreground, uint8_t background = HDMI_COLOR_BLACK);
 
+  /**
+   * Create a custom character
+   * @param location Custom character slot (0-7)
+   * @param charmap Array of 8 bytes defining the 5x8 character pattern
+   * 
+   * Note: Custom characters 0-7 are uploaded to FPGA custom font RAM
+   */
+  void createChar(uint8_t location, uint8_t charmap[]);
+
 private:
   HDMIController* _hdmi;
   uint8_t _cols;

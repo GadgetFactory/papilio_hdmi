@@ -17,6 +17,11 @@ module wb_text_mode (
     output wire [10:0] char_addr,  // 0-2047
     input wire [7:0] char_data,
     
+    // Custom font RAM interface
+    input wire custom_font_we,
+    input wire [5:0] custom_font_addr,
+    input wire [7:0] custom_font_data,
+    
     // RGB output
     output reg [7:0] text_r,
     output reg [7:0] text_g,
@@ -67,7 +72,10 @@ module wb_text_mode (
         .clk(clk),
         .char_code(char_data),  // Use character from RAM
         .row(font_row),  // Use immediate font_row, not delayed
-        .pixels(font_row_data)
+        .pixels(font_row_data),
+        .custom_font_we(custom_font_we),
+        .custom_font_addr(custom_font_addr),
+        .custom_font_data(custom_font_data)
     );
     
     // Extract pixel from font row - try both to see which works

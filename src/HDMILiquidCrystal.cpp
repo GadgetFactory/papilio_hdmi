@@ -67,6 +67,8 @@ void HDMILiquidCrystal::blink() {
 }
 
 void HDMILiquidCrystal::scrollDisplayLeft() {
+  if (!_hdmi) return;
+  
   // Software scrolling: shift all characters one position left
   for (uint8_t row = 0; row < _rows; row++) {
     uint16_t rowStart = row * 80;
@@ -76,37 +78,39 @@ void HDMILiquidCrystal::scrollDisplayLeft() {
       uint16_t dstAddr = rowStart + _displayOffsetX + col;
       
       // Read character from source position using ram_addr_ptr
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (srcAddr >> 8) & 0xFF);
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, srcAddr & 0xFF);
-      uint8_t ch = _hdmi->readRegister(REG_CHARRAM_DATA_WR);  // Reads from ram_addr_ptr
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_HI, (srcAddr >> 8) & 0xFF);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_LO, srcAddr & 0xFF);
+      uint8_t ch = _hdmi->wishboneRead8(REG_CHARRAM_DATA_WR);  // Reads from ram_addr_ptr
       
       // Read attribute from source position (ram_addr_ptr was auto-incremented, so set it again)
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (srcAddr >> 8) & 0xFF);
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, srcAddr & 0xFF);
-      uint8_t attr = _hdmi->readRegister(REG_CHARRAM_ATTR_DATA);  // Reads attr from ram_addr_ptr
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_HI, (srcAddr >> 8) & 0xFF);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_LO, srcAddr & 0xFF);
+      uint8_t attr = _hdmi->wishboneRead8(REG_CHARRAM_ATTR_DATA);  // Reads attr from ram_addr_ptr
       
       // Write to destination position
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (dstAddr >> 8) & 0xFF);
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, dstAddr & 0xFF);
-      _hdmi->writeRegister(REG_CHARRAM_DATA_WR, ch);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_HI, (dstAddr >> 8) & 0xFF);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_LO, dstAddr & 0xFF);
+      _hdmi->wishboneWrite8(REG_CHARRAM_DATA_WR, ch);
       
       // Write attribute (need to set address again since DATA_WR auto-incremented)
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (dstAddr >> 8) & 0xFF);
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, dstAddr & 0xFF);
-      _hdmi->writeRegister(REG_CHARRAM_ATTR_DATA, attr);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_HI, (dstAddr >> 8) & 0xFF);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_LO, dstAddr & 0xFF);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ATTR_DATA, attr);
     }
     // Fill last position with space
     uint16_t lastAddr = rowStart + _displayOffsetX + _cols - 1;
-    _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (lastAddr >> 8) & 0xFF);
-    _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, lastAddr & 0xFF);
-    _hdmi->writeRegister(REG_CHARRAM_DATA_WR, ' ');
-    _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (lastAddr >> 8) & 0xFF);
-    _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, lastAddr & 0xFF);
-    _hdmi->writeRegister(REG_CHARRAM_ATTR_DATA, _currentAttr);
+    _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_HI, (lastAddr >> 8) & 0xFF);
+    _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_LO, lastAddr & 0xFF);
+    _hdmi->wishboneWrite8(REG_CHARRAM_DATA_WR, ' ');
+    _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_HI, (lastAddr >> 8) & 0xFF);
+    _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_LO, lastAddr & 0xFF);
+    _hdmi->wishboneWrite8(REG_CHARRAM_ATTR_DATA, 0x07);  // White on black
   }
 }
 
 void HDMILiquidCrystal::scrollDisplayRight() {
+  if (!_hdmi) return;
+  
   // Software scrolling: shift all characters one position right
   for (uint8_t row = 0; row < _rows; row++) {
     uint16_t rowStart = row * 80;
@@ -116,33 +120,33 @@ void HDMILiquidCrystal::scrollDisplayRight() {
       uint16_t dstAddr = rowStart + _displayOffsetX + col;
       
       // Read character from source position using ram_addr_ptr
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (srcAddr >> 8) & 0xFF);
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, srcAddr & 0xFF);
-      uint8_t ch = _hdmi->readRegister(REG_CHARRAM_DATA_WR);  // Reads from ram_addr_ptr
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_HI, (srcAddr >> 8) & 0xFF);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_LO, srcAddr & 0xFF);
+      uint8_t ch = _hdmi->wishboneRead8(REG_CHARRAM_DATA_WR);  // Reads from ram_addr_ptr
       
       // Read attribute from source position (ram_addr_ptr was auto-incremented, so set it again)
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (srcAddr >> 8) & 0xFF);
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, srcAddr & 0xFF);
-      uint8_t attr = _hdmi->readRegister(REG_CHARRAM_ATTR_DATA);  // Reads attr from ram_addr_ptr
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_HI, (srcAddr >> 8) & 0xFF);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_LO, srcAddr & 0xFF);
+      uint8_t attr = _hdmi->wishboneRead8(REG_CHARRAM_ATTR_DATA);  // Reads attr from ram_addr_ptr
       
       // Write to destination position
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (dstAddr >> 8) & 0xFF);
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, dstAddr & 0xFF);
-      _hdmi->writeRegister(REG_CHARRAM_DATA_WR, ch);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_HI, (dstAddr >> 8) & 0xFF);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_LO, dstAddr & 0xFF);
+      _hdmi->wishboneWrite8(REG_CHARRAM_DATA_WR, ch);
       
       // Write attribute (need to set address again since DATA_WR auto-incremented)
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (dstAddr >> 8) & 0xFF);
-      _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, dstAddr & 0xFF);
-      _hdmi->writeRegister(REG_CHARRAM_ATTR_DATA, attr);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_HI, (dstAddr >> 8) & 0xFF);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_LO, dstAddr & 0xFF);
+      _hdmi->wishboneWrite8(REG_CHARRAM_ATTR_DATA, attr);
     }
     // Fill first position with space
     uint16_t firstAddr = rowStart + _displayOffsetX;
-    _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (firstAddr >> 8) & 0xFF);
-    _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, firstAddr & 0xFF);
-    _hdmi->writeRegister(REG_CHARRAM_DATA_WR, ' ');
-    _hdmi->writeRegister(REG_CHARRAM_ADDR_HI, (firstAddr >> 8) & 0xFF);
-    _hdmi->writeRegister(REG_CHARRAM_ADDR_LO, firstAddr & 0xFF);
-    _hdmi->writeRegister(REG_CHARRAM_ATTR_DATA, _currentAttr);
+    _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_HI, (firstAddr >> 8) & 0xFF);
+    _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_LO, firstAddr & 0xFF);
+    _hdmi->wishboneWrite8(REG_CHARRAM_DATA_WR, ' ');
+    _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_HI, (firstAddr >> 8) & 0xFF);
+    _hdmi->wishboneWrite8(REG_CHARRAM_ADDR_LO, firstAddr & 0xFF);
+    _hdmi->wishboneWrite8(REG_CHARRAM_ATTR_DATA, 0x07);  // White on black
   }
 }
 
@@ -246,3 +250,28 @@ void HDMILiquidCrystal::setColor(uint8_t foreground, uint8_t background) {
     _hdmi->setTextColor(foreground, background);
   }
 }
+
+void HDMILiquidCrystal::createChar(uint8_t location, uint8_t charmap[]) {
+  // Custom character support: Upload 5x8 LCD character pattern to FPGA font RAM
+  // LCD characters are 5x8, but HDMI font is 8x8, so we need to convert
+  
+  if (!_hdmi || location > 7) return;
+  
+  // Convert 5x8 LCD pattern to 8x8 HDMI font pattern
+  // LCD charmap has 5 bits per row (right-justified in the byte)
+  // HDMI font expects 8 bits per row (we'll left-justify and pad with zeros)
+  uint8_t hdmiFontData[8];
+  
+  for (uint8_t row = 0; row < 8; row++) {
+    // Extract 5-bit LCD pattern (bits 4-0)
+    uint8_t lcdRow = charmap[row] & 0x1F;
+    
+    // Convert to 8-bit pattern by left-shifting 3 positions
+    // This centers the 5-pixel pattern in the 8-pixel width
+    hdmiFontData[row] = lcdRow << 3;
+  }
+  
+  // Upload to FPGA custom font RAM
+  _hdmi->writeCustomFont(location, hdmiFontData);
+}
+

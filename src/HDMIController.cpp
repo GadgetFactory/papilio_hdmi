@@ -65,16 +65,16 @@ uint8_t HDMIController::getVideoStatus() {
 void HDMIController::wishboneWrite8(uint16_t address, uint8_t data) {
   if (!_spi) return;
 
-  _spi->beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
+  _spi->beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
   digitalWrite(_cs, LOW);
 
-  _spi->transfer(CMD_WRITE);
-  _spi->transfer(address & 0xFF);
-  _spi->transfer(data);
+  _spi->transfer(CMD_WRITE);              // Command byte
+  _spi->transfer((address >> 8) & 0xFF);  // Address high byte
+  _spi->transfer(address & 0xFF);         // Address low byte
+  _spi->transfer(data);                   // Data byte
 
   digitalWrite(_cs, HIGH);
   _spi->endTransaction();
-  delay(1);
 }
 
 // 8-bit wishbone read
@@ -82,15 +82,14 @@ uint8_t HDMIController::wishboneRead8(uint16_t address) {
   uint8_t data = 0;
   if (!_spi) return data;
 
-  _spi->beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE1));
+  _spi->beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
   digitalWrite(_cs, LOW);
 
-  _spi->transfer(CMD_READ);
-  _spi->transfer(address & 0xFF);
-  _spi->transfer((address >> 8) & 0xFF);
-
-  // Read returned byte
-  data = _spi->transfer(0x00);
+  _spi->transfer(0x00);                   // CMD_READ
+  _spi->transfer((address >> 8) & 0xFF);  // Address high byte
+  _spi->transfer(address & 0xFF);         // Address low byte
+  delayMicroseconds(2);                   // Wait for Wishbone read
+  data = _spi->transfer(0x00);            // Read result
 
   digitalWrite(_cs, HIGH);
   _spi->endTransaction();
@@ -169,6 +168,31 @@ uint8_t HDMIController::getCursorX() {
 
 uint8_t HDMIController::getCursorY() {
   return wishboneRead8(REG_CHARRAM_CURSOR_Y);
+}
+
+void HDMIController::writeCustomFont(uint8_t charCode, const uint8_t fontData[8]) {
+  // Character codes 0-7 are custom characters
+  if (charCode > 7) return;
+  
+  // Calculate font RAM address: charCode * 8 rows
+  uint8_t fontAddr = charCode * 8;
+  
+  Serial.printf("Writing custom char %d at font addr %d\n", charCode, fontAddr);
+  
+  // Write all 8 rows of the character
+  for (uint8_t row = 0; row < 8; row++) {
+    // Set font address
+    wishboneWrite8(REG_CHARRAM_FONT_ADDR, fontAddr + row);
+    
+    // Write font data for this row
+    wishboneWrite8(REG_CHARRAM_FONT_DATA, fontData[row]);
+    
+    Serial.printf("  Row %d: 0x%02X (binary: ", row, fontData[row]);
+    for (int bit = 7; bit >= 0; bit--) {
+      Serial.print((fontData[row] & (1 << bit)) ? '1' : '0');
+    }
+    Serial.println(")");
+  }
 }
 
 // 32-bit write

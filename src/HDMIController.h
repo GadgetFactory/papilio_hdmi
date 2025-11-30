@@ -8,27 +8,29 @@
 #define CMD_WRITE 0x01
 #define CMD_READ  0x02
 
-// 8-bit Wishbone Register Addresses - RGB LED (Slave 0: 0x00-0x0F)
-#define REG_LED_GREEN  0x0000
-#define REG_LED_RED    0x0001
-#define REG_LED_BLUE   0x0002
-#define REG_LED_CTRL   0x0003
+// 8-bit Wishbone Register Addresses - RGB LED (0x8100-0x810F)
+#define REG_LED_GREEN  0x8100
+#define REG_LED_RED    0x8101
+#define REG_LED_BLUE   0x8102
+#define REG_LED_CTRL   0x8103
 
-// 8-bit Wishbone Register Addresses - HDMI Video (Slave 1: 0x10-0x1F)
-#define REG_VIDEO_PATTERN  0x0010
-#define REG_VIDEO_STATUS   0x0011
+// 8-bit Wishbone Register Addresses - HDMI Video (0x8010-0x801F)
+#define REG_VIDEO_PATTERN  0x8010
+#define REG_VIDEO_STATUS   0x8011
 
-// 8-bit Wishbone Register Addresses - Character RAM (Slave 2: 0x20-0x2F)
-#define REG_CHARRAM_CONTROL   0x0020
-#define REG_CHARRAM_CURSOR_X  0x0021
-#define REG_CHARRAM_CURSOR_Y  0x0022
-#define REG_CHARRAM_ATTR      0x0023
-#define REG_CHARRAM_CHAR      0x0024
-#define REG_CHARRAM_ATTR_WR   0x0025
-#define REG_CHARRAM_ADDR_HI   0x0026
-#define REG_CHARRAM_ADDR_LO   0x0027
-#define REG_CHARRAM_DATA_WR   0x0028
-#define REG_CHARRAM_ATTR_DATA 0x0029
+// 8-bit Wishbone Register Addresses - Character RAM (0x8020-0x802F)
+#define REG_CHARRAM_CONTROL   0x8020
+#define REG_CHARRAM_CURSOR_X  0x8021
+#define REG_CHARRAM_CURSOR_Y  0x8022
+#define REG_CHARRAM_ATTR      0x8023
+#define REG_CHARRAM_CHAR      0x8024
+#define REG_CHARRAM_ATTR_WR   0x8025
+#define REG_CHARRAM_ADDR_HI   0x8026
+#define REG_CHARRAM_ADDR_LO   0x8027
+#define REG_CHARRAM_DATA_WR   0x8028
+#define REG_CHARRAM_ATTR_DATA 0x8029
+#define REG_CHARRAM_FONT_ADDR 0x802A
+#define REG_CHARRAM_FONT_DATA 0x802B
 
 // Video pattern modes
 #define PATTERN_COLOR_BARS  0x00
@@ -81,15 +83,19 @@ public:
   void print(const char* str);
   uint8_t getCursorX();
   uint8_t getCursorY();
+  
+  // Custom font functions (for LCD createChar support)
+  void writeCustomFont(uint8_t charCode, const uint8_t fontData[8]);
+  
+  // Wishbone register access (public for HDMILiquidCrystal scroll functions)
+  void wishboneWrite8(uint16_t address, uint8_t data);
+  uint8_t wishboneRead8(uint16_t address);
 
 private:
   SPIClass* _spi;
   bool _ownSpi;
   uint8_t _cs;
   uint8_t _clk, _mosi, _miso;
-
-  void wishboneWrite8(uint16_t address, uint8_t data);
-  uint8_t wishboneRead8(uint16_t address);
   void wishboneWrite(uint32_t address, uint32_t data);
   uint32_t wishboneRead(uint32_t address);
 };

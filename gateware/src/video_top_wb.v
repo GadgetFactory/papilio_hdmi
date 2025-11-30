@@ -12,6 +12,11 @@ module video_top_wb
     input      [7:0]  I_text_char_data,  // Character data from RAM
     output wire [10:0] O_text_char_addr,  // Address to character RAM (0-2047)
     
+    // Custom font RAM interface (for LCD createChar support)
+    input wire        I_custom_font_we,
+    input wire [5:0]  I_custom_font_addr,
+    input wire [7:0]  I_custom_font_data,
+    
     output            O_tmds_clk_p    ,
     output            O_tmds_clk_n    ,
     output     [2:0]  O_tmds_data_p   ,//{r,g,b}
@@ -139,6 +144,10 @@ module video_top_wb
         
         .char_addr(O_text_char_addr),
         .char_data(I_text_char_data),
+        
+        .custom_font_we(I_custom_font_we),
+        .custom_font_addr(I_custom_font_addr),
+        .custom_font_data(I_custom_font_data),
         
         .text_r(text_data_r),
         .text_g(text_data_g),

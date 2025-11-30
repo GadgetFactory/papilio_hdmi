@@ -23,6 +23,11 @@ module wb_video_ctrl (
     input wire [7:0] text_attr_data,
     output wire [11:0] text_char_addr,
     
+    // Custom font RAM interface
+    input wire custom_font_we,
+    input wire [5:0] custom_font_addr,
+    input wire [7:0] custom_font_data,
+    
     // HDMI outputs
     output wire O_tmds_clk_p,
     output wire O_tmds_clk_n,
@@ -74,6 +79,11 @@ module wb_video_ctrl (
         // Text mode character RAM interface
         .I_text_char_data(text_char_data),
         .O_text_char_addr(text_char_addr),
+        
+        // Custom font RAM interface
+        .I_custom_font_we(custom_font_we),
+        .I_custom_font_addr(custom_font_addr),
+        .I_custom_font_data(custom_font_data),
         
         .O_tmds_clk_p(O_tmds_clk_p),
         .O_tmds_clk_n(O_tmds_clk_n),
