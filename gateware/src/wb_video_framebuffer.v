@@ -9,8 +9,7 @@
 //
 // Wishbone Interface:
 //   Address range: 0x0000 - 0x4AFF (19,200 pixels)
-//   Uses word-aligned addressing for HQVGA compatibility:
-//     Pixel at (x,y) = address (y*160 + x) * 4
+//   Direct byte addressing: Pixel at (x,y) = address (y*160 + x)
 //   Each pixel is 8-bit RGB332: RRRGGGBB
 //
 // Memory: 19,200 bytes for 160x120 framebuffer
@@ -76,31 +75,39 @@ localparam FB_X_START = (H_ACTIVE - SCALED_W) / 2;  // 160
 localparam FB_X_END   = FB_X_START + SCALED_W;       // 1120
 
 // ==============================================================================
-// Framebuffer Memory - Simple Dual Port
+// Framebuffer Memory - Dual-Port RAM Instance
 // ==============================================================================
-// Write port: Wishbone clock domain
-// Read port: Pixel clock domain
-// Note: Wishbone readback not supported to keep as simple dual-port RAM
+// Write port: Wishbone clock domain (27 MHz)
+// Read port: Pixel clock domain (74.25 MHz)
+// Using separate module for reliable Gowin BSRAM inference
 
-(* ram_style = "block" *)
-reg [7:0] framebuffer [0:FB_SIZE-1];
-
-// Note: RAM is not pre-initialized - firmware should clear it on startup
-// Gowin synthesis doesn't support large initialization loops
-
-// ==============================================================================
-// Wishbone Interface (Write Only)
-// ==============================================================================
 wire wb_valid = I_wb_stb && I_wb_cyc;
-// HQVGA-compatible word-aligned addressing (pixel * 4)
-wire [14:0] wb_pixel_addr = I_wb_adr[14:2];
+wire [14:0] wb_pixel_addr = I_wb_adr[14:0];
+wire wb_write_en = wb_valid && I_wb_we && (wb_pixel_addr < FB_SIZE);
 
-// Wishbone write
-always @(posedge I_wb_clk) begin
-    if (wb_valid && I_wb_we && wb_pixel_addr < FB_SIZE) begin
-        framebuffer[wb_pixel_addr] <= I_wb_dat;
-    end
-end
+// Read-side signals
+wire [7:0] fb_read_data;
+wire [14:0] fb_read_addr;
+wire fb_read_en;
+
+// Instantiate dual-port RAM
+framebuffer_ram #(
+    .ADDR_WIDTH(15),
+    .DATA_WIDTH(8),
+    .DEPTH(FB_SIZE)
+) u_framebuffer_ram (
+    // Write port (Wishbone clock)
+    .wr_clk     (I_wb_clk       ),
+    .wr_en      (wb_write_en    ),
+    .wr_addr    (wb_pixel_addr  ),
+    .wr_data    (I_wb_dat       ),
+    
+    // Read port (Pixel clock)
+    .rd_clk     (I_pix_clk      ),
+    .rd_en      (fb_read_en     ),
+    .rd_addr    (fb_read_addr   ),
+    .rd_data    (fb_read_data   )
+);
 
 // ACK generation (no readback - simple dual port)
 always @(posedge I_wb_clk or posedge I_wb_rst) begin
@@ -176,33 +183,31 @@ wire [14:0] y_times_128 = {1'b0, src_y, 7'b0};
 wire [14:0] y_times_32  = {3'b0, src_y, 5'b0};
 wire [14:0] fb_addr = y_times_128 + y_times_32 + {7'b0, src_x};
 
+// Connect to RAM read port
+assign fb_read_addr = fb_addr;
+assign fb_read_en = in_fb_region;
+
 // ==============================================================================
 // Pipeline for framebuffer read
 // ==============================================================================
-// Stage 1: Register address and flags
-reg [14:0] fb_addr_d1;
+// Stage 1: Register flags (RAM has 1-cycle latency)
 reg in_fb_region_d1;
 reg de_d1, hs_d1, vs_d1;
 
 always @(posedge I_pix_clk) begin
-    fb_addr_d1 <= fb_addr;
     in_fb_region_d1 <= in_fb_region;
     de_d1 <= I_de;
     hs_d1 <= I_hs;
     vs_d1 <= I_vs;
 end
 
-// Stage 2: Read from framebuffer
+// Stage 2: Capture RAM output
 reg [7:0] pixel_data;
 reg in_fb_region_d2;
 reg de_d2, hs_d2, vs_d2;
 
 always @(posedge I_pix_clk) begin
-    if (in_fb_region_d1 && fb_addr_d1 < FB_SIZE)
-        pixel_data <= framebuffer[fb_addr_d1];
-    else
-        pixel_data <= 8'd0;
-    
+    pixel_data <= fb_read_data;
     in_fb_region_d2 <= in_fb_region_d1;
     de_d2 <= de_d1;
     hs_d2 <= hs_d1;

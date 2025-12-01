@@ -14,29 +14,42 @@
 #define REG_LED_BLUE   0x8102
 #define REG_LED_CTRL   0x8103
 
-// 8-bit Wishbone Register Addresses - HDMI Video (0x8010-0x801F)
-#define REG_VIDEO_PATTERN  0x8010
-#define REG_VIDEO_STATUS   0x8011
+// Video mode control register (0x0000-0x000F)
+#define REG_VIDEO_MODE      0x0000
 
-// 8-bit Wishbone Register Addresses - Character RAM (0x8020-0x802F)
-#define REG_CHARRAM_CONTROL   0x8020
-#define REG_CHARRAM_CURSOR_X  0x8021
-#define REG_CHARRAM_CURSOR_Y  0x8022
-#define REG_CHARRAM_ATTR      0x8023
-#define REG_CHARRAM_CHAR      0x8024
-#define REG_CHARRAM_ATTR_WR   0x8025
-#define REG_CHARRAM_ADDR_HI   0x8026
-#define REG_CHARRAM_ADDR_LO   0x8027
-#define REG_CHARRAM_DATA_WR   0x8028
-#define REG_CHARRAM_ATTR_DATA 0x8029
-#define REG_CHARRAM_FONT_ADDR 0x802A
-#define REG_CHARRAM_FONT_DATA 0x802B
+// 8-bit Wishbone Register Addresses - HDMI Video/Test Pattern (0x0010-0x001F)
+#define REG_VIDEO_PATTERN  0x0010
+#define REG_VIDEO_STATUS   0x0011
 
-// Video pattern modes
+// 8-bit Wishbone Register Addresses - Character RAM (0x0020-0x00FF)
+#define REG_CHARRAM_CONTROL   0x0020
+#define REG_CHARRAM_CURSOR_X  0x0021
+#define REG_CHARRAM_CURSOR_Y  0x0022
+#define REG_CHARRAM_ATTR      0x0023
+#define REG_CHARRAM_CHAR      0x0024
+#define REG_CHARRAM_ATTR_WR   0x0025
+#define REG_CHARRAM_ADDR_HI   0x0026
+#define REG_CHARRAM_ADDR_LO   0x0027
+#define REG_CHARRAM_DATA_WR   0x0028
+#define REG_CHARRAM_ATTR_DATA 0x0029
+#define REG_CHARRAM_FONT_ADDR 0x002A
+#define REG_CHARRAM_FONT_DATA 0x002B
+
+// Video modes
+#define VIDEO_MODE_TEST_PATTERN  0x00
+#define VIDEO_MODE_TEXT          0x01
+#define VIDEO_MODE_FRAMEBUFFER   0x02
+
+// Test pattern modes (when in test pattern video mode)
 #define PATTERN_COLOR_BARS  0x00
 #define PATTERN_GRID        0x01
 #define PATTERN_GRAYSCALE   0x02
 #define PATTERN_TEXT_MODE   0x03
+
+// Framebuffer constants
+#define FB_WIDTH   160
+#define FB_HEIGHT  120
+#define FB_BASE_ADDR  0x0100
 
 // Text colors (4-bit: [3]=bright, [2]=red, [1]=green, [0]=blue)
 #define HDMI_COLOR_BLACK         0x00
@@ -86,6 +99,22 @@ public:
   
   // Custom font functions (for LCD createChar support)
   void writeCustomFont(uint8_t charCode, const uint8_t fontData[8]);
+  
+  // Video mode control
+  void setVideoMode(uint8_t mode);
+  uint8_t getVideoMode();
+  
+  // Framebuffer functions (160x120 RGB332)
+  void enableFramebuffer();
+  void clearFramebuffer(uint8_t color = 0x00);
+  void setPixel(uint8_t x, uint8_t y, uint8_t color);
+  void fillRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t color);
+  void drawColorBars();
+  
+  // RGB332 color helper: r(0-7), g(0-7), b(0-3)
+  static uint8_t rgb332(uint8_t r, uint8_t g, uint8_t b) {
+    return ((r & 0x07) << 5) | ((g & 0x07) << 2) | (b & 0x03);
+  }
   
   // Wishbone register access (public for HDMILiquidCrystal scroll functions)
   void wishboneWrite8(uint16_t address, uint8_t data);

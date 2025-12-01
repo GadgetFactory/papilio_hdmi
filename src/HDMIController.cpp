@@ -195,6 +195,73 @@ void HDMIController::writeCustomFont(uint8_t charCode, const uint8_t fontData[8]
   }
 }
 
+// ============= Video Mode Functions =============
+
+void HDMIController::setVideoMode(uint8_t mode) {
+  wishboneWrite8(REG_VIDEO_MODE, mode);
+}
+
+uint8_t HDMIController::getVideoMode() {
+  return wishboneRead8(REG_VIDEO_MODE);
+}
+
+// ============= Framebuffer Functions =============
+
+void HDMIController::enableFramebuffer() {
+  setVideoMode(VIDEO_MODE_FRAMEBUFFER);
+}
+
+void HDMIController::clearFramebuffer(uint8_t color) {
+  // Write color to all 19,200 pixels (160 x 120)
+  // Using direct byte addressing (pixel index = address offset)
+  for (uint16_t y = 0; y < FB_HEIGHT; y++) {
+    for (uint16_t x = 0; x < FB_WIDTH; x++) {
+      uint16_t pixelIndex = y * FB_WIDTH + x;
+      uint16_t addr = FB_BASE_ADDR + pixelIndex;  // Direct byte addressing
+      wishboneWrite8(addr, color);
+    }
+  }
+}
+
+void HDMIController::setPixel(uint8_t x, uint8_t y, uint8_t color) {
+  if (x >= FB_WIDTH || y >= FB_HEIGHT) return;
+  uint16_t pixelIndex = y * FB_WIDTH + x;
+  uint16_t addr = FB_BASE_ADDR + pixelIndex;  // Direct byte addressing
+  wishboneWrite8(addr, color);
+}
+
+void HDMIController::fillRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t color) {
+  for (uint8_t py = y; py < y + h && py < FB_HEIGHT; py++) {
+    for (uint8_t px = x; px < x + w && px < FB_WIDTH; px++) {
+      setPixel(px, py, color);
+    }
+  }
+}
+
+void HDMIController::drawColorBars() {
+  // RGB332 colors for standard color bars
+  const uint8_t colors[8] = {
+    0xFF,  // White  (111 111 11)
+    0xFC,  // Yellow (111 111 00)
+    0x1F,  // Cyan   (000 111 11)
+    0x1C,  // Green  (000 111 00)
+    0xE3,  // Magenta(111 000 11)
+    0xE0,  // Red    (111 000 00)
+    0x03,  // Blue   (000 000 11)
+    0x00   // Black  (000 000 00)
+  };
+  
+  const uint8_t barWidth = FB_WIDTH / 8;  // 20 pixels per bar
+  
+  for (uint8_t y = 0; y < FB_HEIGHT; y++) {
+    for (uint8_t x = 0; x < FB_WIDTH; x++) {
+      uint8_t barIndex = x / barWidth;
+      if (barIndex > 7) barIndex = 7;
+      setPixel(x, y, colors[barIndex]);
+    }
+  }
+}
+
 // 32-bit write
 void HDMIController::wishboneWrite(uint32_t address, uint32_t data) {
   if (!_spi) return;

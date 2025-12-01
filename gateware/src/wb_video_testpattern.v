@@ -123,8 +123,16 @@ end
 // ==============================================================================
 reg [7:0] tp_r, tp_g, tp_b;
 
-// Color bar index (divide 1280 pixels into 8 bars)
-wire [2:0] color_bar_idx = I_active_x[9:7];
+// Color bar index (divide 1280 pixels into 8 bars of 160 pixels each)
+// 1280 / 8 = 160 pixels per bar
+// To avoid division, use comparison thresholds
+wire [2:0] color_bar_idx = (I_active_x < 12'd160) ? 3'd0 :
+                           (I_active_x < 12'd320) ? 3'd1 :
+                           (I_active_x < 12'd480) ? 3'd2 :
+                           (I_active_x < 12'd640) ? 3'd3 :
+                           (I_active_x < 12'd800) ? 3'd4 :
+                           (I_active_x < 12'd960) ? 3'd5 :
+                           (I_active_x < 12'd1120) ? 3'd6 : 3'd7;
 
 always @(posedge I_pix_clk or negedge I_rst_n) begin
     if (!I_rst_n) begin
@@ -157,10 +165,17 @@ always @(posedge I_pix_clk or negedge I_rst_n) begin
             end
             
             MODE_GRAYSCALE: begin
-                // Horizontal grayscale gradient
-                tp_r <= I_active_x[9:2];
-                tp_g <= I_active_x[9:2];
-                tp_b <= I_active_x[9:2];
+                // Horizontal grayscale gradient (black to white across 1280 pixels)
+                // x >> 2 gives 0-319 for x=0-1279
+                // Truncating to 8 bits clamps values > 255
+                // Result: black at x=0, white at x=1020, then stays white to x=1279
+                if (I_active_x[10:2] > 9'd255)
+                    {tp_r, tp_g, tp_b} <= 24'hFFFFFF;
+                else begin
+                    tp_r <= I_active_x[9:2];
+                    tp_g <= I_active_x[9:2];
+                    tp_b <= I_active_x[9:2];
+                end
             end
             
             default: begin
