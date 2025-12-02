@@ -75,6 +75,7 @@ public:
   ~HDMIController();
 
   void begin();
+  bool waitForFPGA(unsigned long timeoutMs = 5000);
 
   void setLEDColor(uint32_t color);
   void setLEDColorRGB(uint8_t red, uint8_t green, uint8_t blue);

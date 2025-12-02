@@ -241,38 +241,56 @@ void VGA_class::begin(SPIClass* spi, uint8_t csPin, uint8_t spiClk,
 	pinMode(_cs, OUTPUT);
 	digitalWrite(_cs, HIGH);
 	
-	// Wait for FPGA to configure and verify framebuffer mode is set
-	// Keep trying until we successfully read back mode 2
-	const unsigned long timeout = 5000;  // 5 second timeout
-	unsigned long startTime = millis();
+	// Wait for FPGA to be ready (handles bootloader delay and polling)
+	waitForFPGA(5000);
 	
-	while (millis() - startTime < timeout) {
-		delay(100);  // Small delay between attempts
-		setVideoMode(2);
-		delay(10);   // Let the write complete
-		
+	// Set framebuffer mode
+	setVideoMode(2);
+	delay(50);
+	setVideoMode(2);  // Double-write for reliability
+}
+
+bool VGA_class::waitForFPGA(unsigned long timeoutMs) {
+	// Wait for FPGA bootloader (3 seconds) plus margin
+	Serial.println("Waiting for FPGA bootloader...");
+	delay(4000);
+	
+	// Poll until we can communicate with the FPGA
+	Serial.println("Waiting for FPGA to be ready...");
+	unsigned long start = millis();
+	int attempts = 0;
+	
+	while (millis() - start < timeoutMs) {
+		// Try to read video mode register - should return a valid mode (0, 1, or 2)
 		uint8_t mode = getVideoMode();
-		if (mode == 2) {
-			// Successfully set framebuffer mode
-			return;
+		if (mode <= 2) {
+			Serial.print("FPGA ready after ");
+			Serial.print(attempts * 100);
+			Serial.println("ms additional wait");
+			return true;
 		}
+		delay(100);
+		attempts++;
 	}
-	// Timeout - FPGA may not be ready or communication issue
+	
+	Serial.println("Warning: FPGA may not be responding correctly");
+	return false;
 }
 
 uint8_t VGA_class::getVideoMode() {
 	// Read from video mode control register at address 0x0000
+	// Use same settings as HDMIController which works reliably
+	_spi->beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
 	digitalWrite(_cs, LOW);
-	delayMicroseconds(1);
 	
 	_spi->transfer(0x00);  // CMD: Read command
 	_spi->transfer(0x00);  // ADDR_HIGH: 0x00
 	_spi->transfer(0x00);  // ADDR_LOW: 0x00
+	delayMicroseconds(2);  // Wait for Wishbone read
 	uint8_t mode = _spi->transfer(0x00);  // DATA: read result
 	
-	delayMicroseconds(1);
 	digitalWrite(_cs, HIGH);
-	delayMicroseconds(5);
+	_spi->endTransaction();
 	
 	return mode & 0x03;
 }
@@ -280,17 +298,17 @@ uint8_t VGA_class::getVideoMode() {
 void VGA_class::setVideoMode(uint8_t mode) {
 	// Write to video mode control register at address 0x0000
 	// Mode values: 0=TestPattern, 1=Text, 2=Framebuffer
+	// Use same settings as HDMIController which works reliably
+	_spi->beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
 	digitalWrite(_cs, LOW);
-	delayMicroseconds(1);
 	
 	_spi->transfer(0x01);  // CMD: Write command
 	_spi->transfer(0x00);  // ADDR_HIGH: 0x00
 	_spi->transfer(0x00);  // ADDR_LOW: 0x00
 	_spi->transfer(mode & 0x03);  // DATA: video mode (0-2)
 	
-	delayMicroseconds(1);
 	digitalWrite(_cs, HIGH);
-	delayMicroseconds(5);
+	_spi->endTransaction();
 }
 
 void VGA_class::writeWishbone(uint16_t addr, uint8_t data) {
@@ -300,6 +318,8 @@ void VGA_class::writeWishbone(uint16_t addr, uint8_t data) {
 	
 	uint16_t wb_addr = 0x0100 + addr;  // Framebuffer base + pixel offset
 	
+	// Use faster speed for bulk writes (4MHz works well for writes)
+	_spi->beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
 	digitalWrite(_cs, LOW);
 	delayMicroseconds(1);
 	
@@ -311,7 +331,8 @@ void VGA_class::writeWishbone(uint16_t addr, uint8_t data) {
 	
 	delayMicroseconds(1);
 	digitalWrite(_cs, HIGH);
-	delayMicroseconds(5);
+	_spi->endTransaction();
+	delayMicroseconds(1);
 }
 
 uint8_t VGA_class::readWishbone(uint16_t addr) {
@@ -321,17 +342,21 @@ uint8_t VGA_class::readWishbone(uint16_t addr) {
 	
 	uint16_t wb_addr = 0x0100 + addr;  // Framebuffer base + pixel offset
 	
+	// Use slower speed for reads to allow FPGA time to respond
+	_spi->beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
 	digitalWrite(_cs, LOW);
-	delayMicroseconds(1);
+	delayMicroseconds(10);  // Allow settling time
 	
 	// Send 4-byte read transaction
 	_spi->transfer(0x00);                     // CMD: Read command (0x00, not 0x02!)
 	_spi->transfer((wb_addr >> 8) & 0xFF);    // ADDR_HIGH: bits [15:8]
 	_spi->transfer(wb_addr & 0xFF);           // ADDR_LOW: bits [7:0]
+	delayMicroseconds(50); // Extra delay for Wishbone read to complete
 	uint8_t result = _spi->transfer(0x00);    // DATA: read result
 	
 	delayMicroseconds(1);
 	digitalWrite(_cs, HIGH);
+	_spi->endTransaction();
 	delayMicroseconds(5);
 	
 	return result;
@@ -363,6 +388,10 @@ void VGA_class::clear() {
 	fg = bg;
 	drawRect(0, 0, VGA_HSIZE, VGA_VSIZE);
 	fg = oldFg;
+	
+	// Re-assert framebuffer mode after large write operation
+	// This ensures the video mode stays set
+	setVideoMode(2);
 }
 
 void VGA_class::clearArea(unsigned x, unsigned y, unsigned width, unsigned height) {

@@ -25,6 +25,36 @@ void HDMIController::begin() {
 
   pinMode(_cs, OUTPUT);
   digitalWrite(_cs, HIGH);
+  
+  // Wait for FPGA to be ready
+  waitForFPGA(5000);
+}
+
+bool HDMIController::waitForFPGA(unsigned long timeoutMs) {
+  // Wait for FPGA bootloader (3 seconds) plus margin
+  Serial.println("Waiting for FPGA bootloader...");
+  delay(4000);
+  
+  // Poll until we can communicate with the FPGA
+  Serial.println("Waiting for FPGA to be ready...");
+  unsigned long start = millis();
+  int attempts = 0;
+  
+  while (millis() - start < timeoutMs) {
+    // Try to read video mode register - should return a valid mode (0, 1, or 2)
+    uint8_t mode = getVideoMode();
+    if (mode <= 2) {
+      Serial.print("FPGA ready after ");
+      Serial.print(attempts * 100);
+      Serial.println("ms additional wait");
+      return true;
+    }
+    delay(100);
+    attempts++;
+  }
+  
+  Serial.println("Warning: FPGA may not be responding correctly");
+  return false;
 }
 
 void HDMIController::setLEDColor(uint32_t color) {

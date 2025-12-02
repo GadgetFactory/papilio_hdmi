@@ -45,6 +45,11 @@ public:
 	          uint8_t spiClk = 12, uint8_t spiMosi = 11, uint8_t spiMiso = 9,
 	          uint8_t wishboneBase = HQVGA_WISHBONE_BASE);
 
+	// Wait for FPGA to be ready and set framebuffer mode
+	// Call this after begin() if display doesn't appear on power-on
+	// Returns true if framebuffer mode was successfully set
+	bool waitForFPGA(unsigned long timeoutMs = 10000);
+
 	// Video mode control (0=TestPattern, 1=Text, 2=Framebuffer)
 	void setVideoMode(uint8_t mode);
 	uint8_t getVideoMode();
